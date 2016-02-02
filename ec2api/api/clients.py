@@ -26,14 +26,32 @@ logger = logging.getLogger(__name__)
 
 ec2_opts = [
   cfg.StrOpt('cinder_service_type',
-  	       default='volumev2',
-               help='Service type of Cinder Volume API, registered in Keystone catalog.'),
+  	      default='volumev2',
+              help='Service type of Cinder Volume API, registered in Keystone catalog.'),
   cfg.StrOpt('volume_api_version',
-               default='2',
-               help='volume api version'),
+              default='2',
+              help='volume api version'),
 ]
+service_catalog_opts = [
+    cfg.StrOpt('compute',
+               default='http://localhost:8774/v2/TENANT_ID',
+               help='Endpoint for Compute Service '),
+    cfg.StrOpt('image',
+               default='http://localhost:9292',
+               help='Endpoint for Image Service '),
+    cfg.StrOpt('volumev2',
+               default='http://localhost:8776/v2/TENANT_ID',
+               help='Endpoint for Volume Service '),
+    cfg.StrOpt('network',
+               default='http://localhost:9696',
+               help='Endpoint for Network Service '),
+    ]
+
+
+SERVICE_CATALOG_GROUP = 'service_catalog'
 
 CONF = cfg.CONF
+CONF.register_opts(service_catalog_opts, SERVICE_CATALOG_GROUP)
 CONF.register_opts(ec2_opts)
 
 try:
@@ -56,7 +74,7 @@ except ImportError:
 # Nova API's 2.3 microversion provides additional EC2 compliant instance
 # properties
 _novaclient_vertion = '2.3'
-_nova_service_type = 'computev21'
+_nova_service_type = 'compute'
 
 
 def nova(context):
@@ -167,26 +185,20 @@ def nova_cert(context):
 
 
 def _url_for(context, **kwargs):
-    service_catalog = context.service_catalog
-    if not service_catalog:
-        catalog = keystone(context).service_catalog.catalog
-        service_catalog = catalog['serviceCatalog']
-        context.service_catalog = service_catalog
-
     service_type = kwargs['service_type']
-    for service in service_catalog:
-        if service['type'] != service_type:
-            continue
-        for endpoint in service['endpoints']:
-            if 'publicURL' in endpoint:
-                return endpoint['publicURL']
-            elif endpoint.get('interface') == 'public':
-                # NOTE(andrey-mp): keystone v3
-                return endpoint['url']
-        else:
-            return None
-
-    return None
+    if service_type == 'compute':
+        url = CONF.service_catalog.compute
+        url = url.replace('TENANT_ID', context.project_id)
+    elif service_type == 'image':
+        url = CONF.service_catalog.image
+    elif service_type == 'network':
+        url = CONF.service_catalog.network
+    elif service_type == 'volumev2':
+        url = CONF.service_catalog.volumev2
+        url = url.replace('TENANT_ID', context.project_id)
+    else:
+        logger.warning(_LW("Unknown service type in JCS Layer."))
+    return url
 
 
 class _rpcapi_CertAPI(object):

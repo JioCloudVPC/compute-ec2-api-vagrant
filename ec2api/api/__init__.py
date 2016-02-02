@@ -43,17 +43,29 @@ ec2_opts = [
     cfg.StrOpt('keystone_url',
                default='http://localhost:5000/v2.0',
                help='URL to get token from ec2 request.'),
-    cfg.StrOpt('keystone_ec2_tokens_url',
-               default='$keystone_url/ec2tokens',
+    cfg.StrOpt('keystone_endpoint',
+               default='http://localhost:5000',
                help='URL to get token from ec2 request.'),
+    cfg.StrOpt('keystone_sig_url',
+               default='$keystone_endpoint/v2.0/ec2-auth',
+               help='URL to validate signature/access key in ec2 request.'),
+    cfg.StrOpt('keystone_token_url',
+               default='$keystone_url/token-auth',
+               help='URL to validate token in ec2 request.'),
     cfg.StrOpt('mapping_file',
                default='mapping.json',
                help='The JSON file that defines action resource mapping'),
+    cfg.StrOpt('sbs_jcs_endpoint',
+               help='Endpoint for JCS layer for SBS'),
+    cfg.StrOpt('sbs_apis_file',
+               default='sbs_apis.list',
+               help='The file that contains list of apis which need to '
+                     'be sent to SBS JCS layer directly.'),
     cfg.IntOpt('ec2_timestamp_expiry',
                default=300,
                help='Time in seconds before ec2 timestamp expires'),
     cfg.BoolOpt('enable_policy_engine',
-               default=False,
+               default=True,
                help='Flag to enable/disable action-resource list for auth.'),
     cfg.ListOpt('supported_api_versions',
                 default=['2016-03-01'],
@@ -140,6 +152,14 @@ class EC2KeystoneAuth(wsgi.Middleware):
         if CONF.enable_policy_engine:
             self.policy_engine = policy_engine.PolicyEngine(CONF.mapping_file)
 
+    def _get_auth_token(self, req):
+        """Extract the Auth token from the request
+
+        This is the header X-Auth-Token present in the request
+        """
+        auth_token = req.headers.get('X-Auth-Token')
+        return auth_token
+
     def _get_signature(self, req):
         """Extract the signature from the request.
 
@@ -169,7 +189,7 @@ class EC2KeystoneAuth(wsgi.Middleware):
         version 4 it is either an X-Amz-Credential parameter or a Credential=
         field in the 'Authorization' header string.
         """
-        access = req.params.get('AWSAccessKeyId')
+        access = req.params.get('JCSAccessKeyId')
         if access is not None:
             return access
 
@@ -203,25 +223,6 @@ class EC2KeystoneAuth(wsgi.Middleware):
             return faults.ec2_error_response(request_id, 'BadRequest',
                                              _msg, status=400)
 
-        signature = self._get_signature(req)
-        if not signature:
-            msg = _("Signature not provided")
-            return faults.ec2_error_response(request_id, "AuthFailure", msg,
-                                             status=400)
-        access = self._get_access(req)
-        if not access:
-            msg = _("Access key not provided")
-            return faults.ec2_error_response(request_id, "AuthFailure", msg,
-                                             status=400)
-
-        if 'X-Amz-Signature' in req.params or 'Authorization' in req.headers:
-            params = {}
-        else:
-            # Make a copy of args for authentication and signature verification
-            params = dict(req.params)
-            # Not part of authentication args
-            params.pop('Signature', None)
-
         if CONF.enable_policy_engine:
             try:
                 rsrc_action_list = self.policy_engine.handle_params(
@@ -239,57 +240,75 @@ class EC2KeystoneAuth(wsgi.Middleware):
                     return faults.ec2_error_response(request_id, 'BadRequest',
                                                 str(e), status=400)
 
-        cred_dict = {
-            'access': access,
-            'signature': signature,
-            'host': req.host,
-            'verb': req.method,
-            'path': req.path,
-            'params': params,
-            'headers': req.headers,
-            'body_hash': body_hash
-        }
-
-        if CONF.enable_policy_engine:
-            cred_dict['action_resource_list'] = rsrc_action_list
-
-        token_url = CONF.keystone_ec2_tokens_url
-        if "ec2" in token_url:
-            creds = {'ec2Credentials': cred_dict}
-        else:
-            creds = {'auth': {'OS-KSEC2:ec2Credentials': cred_dict}}
-        creds_json = jsonutils.dumps(creds)
+        keystone_validation_url = ""
+        data = {}
         headers = {'Content-Type': 'application/json'}
+        auth_token = self._get_auth_token(req)
+        if auth_token:
+            headers['X-Auth-Token'] = auth_token
+            data['action_resource_list'] = rsrc_action_list
+            data = jsonutils.dumps(data)
+            keystone_validation_url = CONF.keystone_token_url
+        else:
+            signature = self._get_signature(req)
+            if not signature:
+                msg = _("Signature not provided")
+                return faults.ec2_error_response(request_id, "AuthFailure", msg,
+                                                 status=400)
+            access = self._get_access(req)
+            if not access:
+                msg = _("Access key not provided")
+                return faults.ec2_error_response(request_id, "AuthFailure", msg,
+                                                 status=400)
+    
+            if 'X-Amz-Signature' in req.params or 'Authorization' in req.headers:
+                params = {}
+            else:
+                # Make a copy of args for authentication and signature verification
+                params = dict(req.params)
+                # Not part of authentication args
+                params.pop('Signature', None)
+    
+            cred_dict = {
+                'access': access,
+                'signature': signature,
+                'host': req.host,
+                'verb': req.method,
+                'path': req.path,
+                'params': params,
+                'headers': req.headers,
+                'body_hash': body_hash
+            }
+
+            if CONF.enable_policy_engine:
+                cred_dict['action_resource_list'] = rsrc_action_list
+
+            keystone_validation_url = CONF.keystone_sig_url
+            if "ec2" in keystone_validation_url:
+                creds = {'ec2Credentials': cred_dict}
+            else:
+                creds = {'auth': {'OS-KSEC2:ec2Credentials': cred_dict}}
+            data = jsonutils.dumps(creds)
 
         verify = CONF.ssl_ca_file or not CONF.ssl_insecure
-        response = requests.request('POST', token_url, verify=verify,
-                                    data=creds_json, headers=headers)
+        response = requests.request('POST', keystone_validation_url,
+                             verify=verify, data=data, headers=headers)
+
         status_code = response.status_code
         if status_code != 200:
-            msg = response.reason
+            msg = response.text
             return faults.ec2_error_response(request_id, "AuthFailure", msg,
                                              status=status_code)
         result = response.json()
-
         try:
-            if 'token' in result:
-                # NOTE(andrey-mp): response from keystone v3
-                token_id = response.headers['x-subject-token']
-                user_id = result['token']['user']['id']
-                project_id = result['token']['project']['id']
-                user_name = result['token']['user'].get('name')
-                project_name = result['token']['project'].get('name')
-                roles = []
-                catalog = result['token']['catalog']
+            user_id = result.get('user_id')
+            project_id = result.get('account_id')
+            if auth_token:
+                token_id = auth_token
             else:
-                token_id = result['access']['token']['id']
-                user_id = result['access']['user']['id']
-                project_id = result['access']['token']['tenant']['id']
-                user_name = result['access']['user'].get('name')
-                project_name = result['access']['token']['tenant'].get('name')
-                roles = [role['name'] for role
-                         in result['access']['user']['roles']]
-                catalog = result['access']['serviceCatalog']
+                token_id = result.get('token_id')
+            if not user_id or not project_id:
+                raise KeyError
         except (AttributeError, KeyError):
             LOG.exception(_("Keystone failure"))
             msg = _("Failure communicating with keystone")
@@ -301,6 +320,9 @@ class EC2KeystoneAuth(wsgi.Middleware):
             remote_address = req.headers.get('X-Forwarded-For',
                                              remote_address)
 
+        # Fill in default values
+        user_name = project_name = 'default'
+        roles = catalog = []
         ctxt = context.RequestContext(user_id, project_id,
                                       user_name=user_name,
                                       project_name=project_name,
@@ -317,6 +339,40 @@ class EC2KeystoneAuth(wsgi.Middleware):
 
 class Requestify(wsgi.Middleware):
 
+    def _read_sbs_apis_list(self):
+        sbs_apis_file = CONF.find_file(CONF.sbs_apis_file)
+        if sbs_apis_file:
+            with open(sbs_apis_file) as fp:
+                self.sbs_apis = fp.read().splitlines()
+                self.sbs_apis = set(self.sbs_apis)
+
+    def __init__(self, local_config):
+        super(Requestify, self).__init__(local_config)
+        self.sbs_apis = []
+        self._read_sbs_apis_list()
+
+    def _execute_sbs_api(self, action, args, context):
+        sbs_url = CONF.sbs_jcs_endpoint
+        request_id = context.request_id
+        params = args
+        params['Action'] = action
+        params['ProjectId'] = context.project_id
+        params['UserId'] = context.user_id
+        params['TokenId'] = context.auth_token
+        params['RequestId'] = request_id
+        headers = {'Content-Type': 'application/json'}
+
+        verify = CONF.ssl_ca_file or not CONF.ssl_insecure
+        response = requests.request('POST', sbs_url, verify=verify,
+                                    params=params, headers=headers)
+
+        status_code = response.status_code
+        resp = webob.Response()
+        resp.status = status_code
+        resp.headers['Content-Type'] = 'text/xml'
+        resp.body = str(response.text)
+        return resp
+        
     @webob.dec.wsgify(RequestClass=wsgi.Request)
     def __call__(self, req):
         non_args = ['Action', 'Signature', 'AWSAccessKeyId', 'SignatureMethod',
@@ -350,6 +406,12 @@ class Requestify(wsgi.Middleware):
         for key, value in args.items():
             LOG.debug('arg: %(key)s\t\tval: %(value)s',
                       {'key': key, 'value': value})
+
+        # Check if sbs_apis.list file is present and if the action
+        # belongs in that list
+        if self.sbs_apis and action in self.sbs_apis:
+            return self._execute_sbs_api(action, args,
+                                    req.environ['ec2api.context'])
 
         # Success!
         api_request = apirequest.APIRequest(
