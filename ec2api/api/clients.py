@@ -34,7 +34,7 @@ ec2_opts = [
 ]
 
 CONF = cfg.CONF
-
+CONF.register_opts(ec2_opts)
 
 try:
     from neutronclient.v2_0 import client as neutronclient
