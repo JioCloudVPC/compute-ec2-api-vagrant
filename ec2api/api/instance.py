@@ -49,6 +49,9 @@ ec2_opts = [
 CONF = cfg.CONF
 CONF.register_opts(ec2_opts)
 
+DEFAULT_BLOCK_VOLUME_SIZE = 8
+DEFAULT_ROOT_DEVICE_NAME = "/dev/sda1"
+
 """Instance related API implementation
 """
 
@@ -747,31 +750,132 @@ def _parse_image_parameters(context, image_id, kernel_id, ramdisk_id):
     return os_image, os_kernel_id, os_ramdisk_id
 
 
+def _is_this_root_volume(context, item, root_device, root_snapshot_id):
+    result = False
+    # Two things will determine if this is root volume
+    # device name reserved for root volumes and
+    # snapshot id reserved for AMI's
+    if item.has_key("device_name") and item["device_name"] == root_device:
+        if item.has_key("snapshot_id") and item["snapshot_id"] != root_snapshot_id:
+            msg = ('Incosistent device name and snapshot id')
+            raise exception.InvalidParameterValue(msg)
+
+        # This block device mapping is for root device/volume
+        result = True
+    return result
+
+
+def _process_block_device_mapping_entry(context, item,
+                                        root_device,
+                                        root_snapshot_id,
+                                        os_image):
+    result = {}
+    root_device_found = False
+
+    # Unless we support ephemeral devices the destination_type will be
+    # volume
+    result["destination_type"] = "volume"
+
+    # This parameter is applicable to all types of block devices
+    if item.has_key("volume_size"):
+        result["volume_size"] = item["volume_size"]
+    else:
+        # TODO: We can put it in config. But this should rarely be used.
+        result["volume_size"] = DEFAULT_BLOCK_VOLUME_SIZE
+
+    # This flag is applicable to all types of block devices
+    if item.has_key("delete_on_termination"):
+        result["delete_on_termination"] = item["delete_on_termination"]
+    else:
+        # TODO: We can put it in config but for now default behavior is false
+        result["delete_on_termination"] = False
+
+    if _is_this_root_volume(context, item, root_device, root_snapshot_id):
+        result["device_name"] = root_device
+        result["boot_index"] = "0"
+        result["source_type"] = "image"
+        result["uuid"] = str(os_image.id)
+        root_device_found = True
+    else:
+
+        if item.has_key("snapshot_id"):
+            result["snapshot_id"] = item["snapshot_id"]
+            result["source_type"] = "snapshot"
+        else:
+            result["source_type"] = "blank"
+
+        if item.has_key("device_name"):
+            result["device_name"] = item["device_name"]
+
+        result["boot_index"] = "-1"
+    return root_device_found, result
+
+
+def _create_root_bdm_from_image(context, os_image):
+    # Start with some default values and fill as required
+    root_bdm = {
+        "boot_index": "0",
+        "source_type": "image",
+        "destination_type": "volume",
+        "volume_size": str(DEFAULT_BLOCK_VOLUME_SIZE),
+        "delete_on_termination": False,
+        "device_name": DEFAULT_ROOT_DEVICE_NAME
+    }
+
+    if os_image != None:
+        root_bdm["uuid"] = str(os_image.id)
+
+        if os_image.min_disk > 0:
+            root_bdm["volume_size"] = str(os_image.min_disk)
+
+        if os_image.properties != None and os_image.properties.has_key("root_device"):
+            root_bdm["device_name"] = str(os_image.properties["root_device"])
+
+    return root_bdm
+
+
 def _parse_block_device_mapping_v2(context, block_device_mapping,
                                    os_image = None,
                                    os_kernel_id = None,
                                    os_ramdisk_id = None):
-    bdm = {}
     if block_device_mapping is None:
         # No block device mapping is supplied. We still need to
         # boot from volume. Let us figure out the information we
         # need
+        bdm = _create_root_bdm_from_image(context, os_image)
+        # Need to return array of dict
+        return [bdm]
 
-        bdm = {
-            "device_name": "/dev/sda1",
-            "boot_index": "0",
-            "source_type": "image",
-            "volume_size": "8",
-            "destination_type": "volume",
-            "delete_on_termination": False
-        }
+    # We have one or more items in block device mapping. 
+    bdm_list = []
 
-        if os_image != None and os_image.min_disk > 0:
-            bdm["volume_size"] = str(os_image.min_disk)
+    # We need to figure out block device mapping paramaters for root volume
+    root_device = DEFAULT_ROOT_DEVICE_NAME
+    root_snapshot_id = None
 
-        bdm["uuid"] = str(os_image.id)
+    if os_image != None and os_image.properties != None:
+        if os_image.properties.has_key("root_device"):
+            root_device = os_image.properties["root_device"]
+        if os_image.properties.has_key("snapshot_id"):
+            root_snapshot_id = os_image.properties["snapshot_id"]
 
-    return [bdm]
+    bdm_has_root_device = False
+    # Now we are ready to process block device mapping enteries
+    for item in block_device_mapping:
+        is_root_dev, result = _process_block_device_mapping_entry(context,
+                                                                 item,
+                                                                 root_device,
+                                                                 root_snapshot_id,
+                                                                 os_image)
+        bdm_list.append(result)
+        if is_root_dev:
+            bdm_has_root_device = True
+
+    if bdm_has_root_device == False:
+        bdm = _create_root_bdm_from_image(context, os_image)
+        bdm_list.append(bdm)
+
+    return bdm_list
 
 
 # TODO: [varun] This function needs to be deprecated
