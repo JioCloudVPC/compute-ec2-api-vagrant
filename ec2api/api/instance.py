@@ -80,7 +80,7 @@ def get_instance_engine():
         return InstanceEngineNova()
 
 
-def run_instances(context, image_id, instance_count,
+def run_instances(context, image_id, instance_count=1,
                   key_name=None, security_group_id=None,
                   security_group=None, user_data=None, instance_type_id=None,
                   placement=None, kernel_id=None, ramdisk_id=None,
