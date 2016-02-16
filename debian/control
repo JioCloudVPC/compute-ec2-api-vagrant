@@ -46,7 +46,8 @@ Depends: python,
  python-lxml,
  python-oslo-messaging,
  python-httplib2,
- python-keystoneclient
+ python-keystoneclient,
+ python-policyengine
 Description: EC2 API
  This provides support for EC2 API over openstack.
 
