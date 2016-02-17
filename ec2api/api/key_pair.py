@@ -92,7 +92,7 @@ def create_key_pair(context, key_name):
         raise exception.InvalidKeyPairDuplicate(key_name=key_name)
     formatted_key_pair = _format_key_pair(key_pair)
     formatted_key_pair['keyMaterial'] = key_pair.private_key
-    return {"keyPair": formatted_key_pair}
+    return formatted_key_pair
 
 
 def import_key_pair(context, key_name, public_key_material):
