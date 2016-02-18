@@ -1425,7 +1425,7 @@ def _cloud_format_instance_bdm(context, os_instance, result,
         volume = ec2utils.get_db_item_by_os_id(context, 'vol', os_volume.id,
                                                volumes)
         # TODO(yamahata): volume attach time
-        ebs = {'volumeId': volume['id'],
+        ebs = {'volumeId': os_volume.id,
                'status': _cloud_get_volume_attach_status(os_volume)}
         volume_attached = next((va for va in volumes_attached
                                 if va['id'] == os_volume.id), None)

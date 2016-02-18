@@ -46,19 +46,19 @@ def create_volume(context, availability_zone=None, size=None,
                 availability_zone=availability_zone)
         cleaner.addCleanup(os_volume.delete)
 
-        volume = db_api.add_item(context, 'vol', {'os_id': os_volume.id})
-        cleaner.addCleanup(db_api.delete_item, context, volume['id'])
-        os_volume.update(display_name=volume['id'])
+        #volume = db_api.add_item(context, 'vol', {'os_id': os_volume.id})
+        cleaner.addCleanup(db_api.delete_item, context, os_volume.id)
+        #os_volume.update(display_name=volume['id'])
 
-    return _format_volume(context, volume, os_volume, snapshot_id=snapshot_id)
+    return _format_volume(context, os_volume, snapshot_id=snapshot_id)
 
 
 def show_delete_on_termination_flag(context, volume_id):
-    volume = ec2utils.get_db_item(context, volume_id)
-    if not volume:
-        _msg = ("No volume found corresponding to volume_id=" + volume_id)
-        raise exception.InvalidRequest(_msg)
-    volume_id = volume['os_id']
+    #volume = ec2utils.get_db_item(context, volume_id)
+    #if not volume:
+    #    _msg = ("No volume found corresponding to volume_id=" + volume_id)
+    #    raise exception.InvalidRequest(_msg)
+    #volume_id = volume['os_id']
     nova = clients.nova(context)
     try:
         response = nova.volumes.show_delete_on_termination_flag(volume_id)
@@ -70,11 +70,11 @@ def show_delete_on_termination_flag(context, volume_id):
 
 def update_delete_on_termination_flag(context, volume_id, 
                                    delete_on_termination):
-    volume = ec2utils.get_db_item(context, volume_id)
-    if not volume:
-        _msg = ("No volume found corresponding to volume_id=" + volume_id)
-        raise exception.InvalidRequest(_msg)
-    volume_id = volume['os_id']
+    #volume = ec2utils.get_db_item(context, volume_id)
+    #if not volume:
+    #    _msg = ("No volume found corresponding to volume_id=" + volume_id)
+    #    raise exception.InvalidRequest(_msg)
+    #volume_id = volume['os_id']
     nova = clients.nova(context)
     try:
         response = nova.volumes.update_delete_on_termination_flag(volume_id,
@@ -86,32 +86,32 @@ def update_delete_on_termination_flag(context, volume_id,
 
 
 def attach_volume(context, volume_id, instance_id, device):
-    volume = ec2utils.get_db_item(context, volume_id)
+    #volume = ec2utils.get_db_item(context, volume_id)
     instance = ec2utils.get_db_item(context, instance_id)
 
     nova = clients.nova(context)
     try:
-        nova.volumes.create_server_volume(instance['os_id'], volume['os_id'],
+        nova.volumes.create_server_volume(instance['os_id'], volume_id,
                                           device)
     except (nova_exception.Conflict, nova_exception.BadRequest):
         # TODO(andrey-mp): raise correct errors for different cases
         raise exception.UnsupportedOperation()
     cinder = clients.cinder(context)
-    os_volume = cinder.volumes.get(volume['os_id'])
+    os_volume = cinder.volumes.get(volume_id)
     # [varun]: Sending delete on termination as false (last param below)
     # when volume is attached delete on termination flag will be false by
     # default therefore sending false to make consistent with AWS
-    return _format_attachment(context, volume, os_volume,
+    return _format_attachment(context, os_volume,
                               instance_id=instance_id,
                               delete_on_termination_flag=False)
 
 
 def detach_volume(context, volume_id, instance_id=None, device=None,
                   force=None):
-    volume = ec2utils.get_db_item(context, volume_id)
+    #volume = ec2utils.get_db_item(context, volume_id)
 
     cinder = clients.cinder(context)
-    os_volume = cinder.volumes.get(volume['os_id'])
+    os_volume = cinder.volumes.get(volume_id)
     os_instance_id = next(iter(os_volume.attachments), {}).get('server_id')
     if not os_instance_id:
         # TODO(ft): Change the message with the real AWS message
@@ -126,16 +126,16 @@ def detach_volume(context, volume_id, instance_id=None, device=None,
     # [varun]: Sending delete on termination as false (last param below)
     # when volume is detached delete on termination flag does not make sense
     # therefore sending false to make consistent with AWS
-    return _format_attachment(context, volume, os_volume,
+    return _format_attachment(context, os_volume,
                               instance_id=instance_id,
                               delete_on_termination_flag=False)
 
 
 def delete_volume(context, volume_id):
-    volume = ec2utils.get_db_item(context, volume_id)
+    #volume = ec2utils.get_db_item(context, volume_id)
     cinder = clients.cinder(context)
     try:
-        cinder.volumes.delete(volume['os_id'])
+        cinder.volumes.delete(volume_id)
     except cinder_exception.BadRequest:
         # TODO(andrey-mp): raise correct errors for different cases
         raise exception.UnsupportedOperation()
@@ -160,8 +160,8 @@ class VolumeDescriber(common.TaggableItemsDescriber):
                   'attachment.instance-id': ['attachmentSet', 'instanceId'],
                   'attachment.status': ['attachmentSet', 'status']}
 
-    def format(self, volume, os_volume):
-        return _format_volume(self.context, volume, os_volume,
+    def format(self, os_volume):
+        return _format_volume(self.context, os_volume,
                               self.instances, self.snapshots)
 
     def get_db_items(self):
@@ -185,14 +185,14 @@ def describe_volumes(context, volume_id=None, filter=None,
     return {'volumeSet': formatted_volumes}
 
 
-def _format_volume(context, volume, os_volume, instances={},
+def _format_volume(context, os_volume, instances={},
                    snapshots={}, snapshot_id=None):
     valid_ec2_api_volume_status_map = {
         'attaching': 'in-use',
         'detaching': 'in-use'}
 
     ec2_volume = {
-            'volumeId': volume['id'],
+            'volumeId': os_volume.id,
             'status': valid_ec2_api_volume_status_map.get(os_volume.status,
                                                           os_volume.status),
             'size': os_volume.size,
@@ -215,7 +215,7 @@ def _format_volume(context, volume, os_volume, instances={},
     return ec2_volume
 
 
-def _format_attachment(context, volume, os_volume, instances={},
+def _format_attachment(context, os_volume, instances={},
                        instance_id=None, delete_on_termination_flag=False):
     os_attachment = next(iter(os_volume.attachments), {})
     os_instance_id = os_attachment.get('server_id')
@@ -229,6 +229,6 @@ def _format_attachment(context, volume, os_volume, instances={},
             'status': (os_volume.status
                        if os_volume.status in ('attaching', 'detaching') else
                        'attached' if os_attachment else 'detached'),
-            'volumeId': volume['id'],
+            'volumeId': os_volume.id,
             'deleteOnTermination': delete_on_termination_flag}
     return ec2_attachment

@@ -731,7 +731,7 @@ class CloudController(object):
             The console output of the instance, timestamp and instance id.
         """
 
-    @module_and_param_types(volume, 'vol_id')
+    @module_and_param_types(volume, 'dummy')
     def show_delete_on_termination_flag(self, context, volume_id):
         """Get the delete on termination flag on the volume id
         to the given value.
@@ -745,7 +745,7 @@ class CloudController(object):
         """
 
 
-    @module_and_param_types(volume, 'vol_id', 'bool')
+    @module_and_param_types(volume, 'dummy', 'bool')
     def update_delete_on_termination_flag(self, context, volume_id,
                                           delete_on_termination):
         """Update the delete on termination flag on the volume id
@@ -798,7 +798,7 @@ class CloudController(object):
         snapshot.
         """
 
-    @module_and_param_types(volume, 'vol_id', 'i_id', 'str')
+    @module_and_param_types(volume, 'dummy', 'i_id', 'str')
     def attach_volume(self, context, volume_id, instance_id, device):
         """Attaches an EBS volume to a running or stopped instance.
 
@@ -814,7 +814,7 @@ class CloudController(object):
         The instance and volume must be in the same Availability Zone.
         """
 
-    @module_and_param_types(volume, 'vol_id', 'i_id', 'str')
+    @module_and_param_types(volume, 'dummy', 'i_id', 'str')
     def detach_volume(self, context, volume_id, instance_id=None, device=None,
                       force=None):
         """Detaches an EBS volume from an instance.
@@ -833,7 +833,7 @@ class CloudController(object):
             Information about the detachment.
         """
 
-    @module_and_param_types(volume, 'vol_id')
+    @module_and_param_types(volume, 'dummy')
     def delete_volume(self, context, volume_id):
         """Deletes the specified EBS volume.
 
@@ -847,7 +847,7 @@ class CloudController(object):
         The volume must be in the available state.
         """
 
-    @module_and_param_types(volume, 'vol_ids', 'filter',
+    @module_and_param_types(volume, 'dummy', 'filter',
                             'int', 'str')
     def describe_volumes(self, context, volume_id=None, filter=None,
                          max_results=None, next_token=None):
