@@ -75,6 +75,7 @@ rpcapi_opts = [
 
 CONF.register_opts(rpcapi_opts)
 
+DEFAULT_BLOCK_VOLUME_SIZE = 8
 
 """Volume related API implementation
 """
@@ -539,6 +540,9 @@ def _format_image(context, image, os_image, images_dict, ids_dict,
     _prepare_mappings(os_image)
     properties = os_image.properties
 
+    root_bdm = _prepare_root_bdm_for_image(os_image)
+    ec2_image['blockDeviceMapping'] = root_bdm
+
     # Commenting the root device name and root device type from the response
     # Will remove any dead code in next iteration
     root_device_name = _block_device_properties_root_device_name(properties)
@@ -563,6 +567,31 @@ def _format_image(context, image, os_image, images_dict, ids_dict,
                            root_device_name, snapshot_ids, os_image.owner)
 
     return ec2_image
+
+
+def _prepare_root_bdm_for_image(os_image):
+    root_bdm = {}
+    required_information_missing = False
+    if os_image.properties != None and \
+       os_image.properties.has_key("root_device") and \
+       os_image.properties.has_key("snapshot_id"):
+        root_bdm["deviceName"] = os_image.properties["root_device"]
+        root_bdm["snapshotId"]=os_image.properties["snapshot_id"]
+    else:
+        required_information_missing = True
+
+    if os_image.min_disk > 0:
+        root_bdm["volumeSize"] = os_image.min_disk
+    else:
+        root_bdm["volumeSize"] = DEFAULT_BLOCK_VOLUME_SIZE
+
+    root_bdm["deleteOnTermination"] = "false"
+
+    # Required information is missing so no point in sending anything
+    if required_information_missing:
+        root_bdm = {}
+
+    return root_bdm
 
 
 def _prepare_mappings(os_image):
