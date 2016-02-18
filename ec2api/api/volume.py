@@ -98,7 +98,6 @@ def attach_volume(context, volume_id, instance_id, device):
         raise exception.UnsupportedOperation()
     cinder = clients.cinder(context)
     os_volume = cinder.volumes.get(volume['os_id'])
-
     # [varun]: Sending delete on termination as false (last param below)
     # when volume is attached delete on termination flag will be false by
     # default therefore sending false to make consistent with AWS

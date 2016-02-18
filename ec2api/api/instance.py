@@ -344,7 +344,8 @@ class InstanceDescriber(common.TaggableItemsDescriber):
     def get_os_items(self):
         self.os_volumes = _get_os_volumes(self.context)
         self.os_flavors = _get_os_flavors(self.context)
-        nova = clients.nova(ec2_context.get_os_admin_context())
+#        nova = clients.nova(ec2_context.get_os_admin_context())
+        nova = clients.nova(self.context)
         if self.ids == 1 and len(self.items) == 1:
             try:
                 return [nova.servers.get(self.items[0]['os_id'])]
