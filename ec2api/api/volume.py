@@ -47,7 +47,7 @@ def create_volume(context, availability_zone=None, size=None,
         cleaner.addCleanup(os_volume.delete)
 
         #volume = db_api.add_item(context, 'vol', {'os_id': os_volume.id})
-        cleaner.addCleanup(db_api.delete_item, context, os_volume.id)
+        #cleaner.addCleanup(db_api.delete_item, context, os_volume.id)
         #os_volume.update(display_name=volume['id'])
 
     return _format_volume(context, os_volume, snapshot_id=snapshot_id)
@@ -68,7 +68,7 @@ def show_delete_on_termination_flag(context, volume_id):
         raise exception.UnsupportedOperation()
 
 
-def update_delete_on_termination_flag(context, volume_id, 
+def update_delete_on_termination_flag(context, volume_id,
                                    delete_on_termination):
     #volume = ec2utils.get_db_item(context, volume_id)
     #if not volume:

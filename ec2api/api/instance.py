@@ -847,7 +847,7 @@ def _parse_block_device_mapping_v2(context, block_device_mapping,
         # Need to return array of dict
         return [bdm]
 
-    # We have one or more items in block device mapping. 
+    # We have one or more items in block device mapping.
     bdm_list = []
 
     # We need to figure out block device mapping paramaters for root volume
@@ -916,7 +916,7 @@ def _get_ip_info_for_instance(os_instance):
     return fixed_ip, fixed_ip6, floating_ip
 
 
-def _foreach_instance(context, instance_ids, valid_states, func, 
+def _foreach_instance(context, instance_ids, valid_states, func,
                       final_state=None):
     instances = ec2utils.get_db_items(context, 'i', instance_ids)
     os_instances = _get_os_instances_by_instances(context, instances,
@@ -1422,8 +1422,8 @@ def _cloud_format_instance_bdm(context, os_instance, result,
                 device_name == root_device_short_name):
             root_device_type = 'ebs'
 
-        volume = ec2utils.get_db_item_by_os_id(context, 'vol', os_volume.id,
-                                               volumes)
+        #volume = ec2utils.get_db_item_by_os_id(context, 'vol', os_volume.id,
+        #                                       volumes)
         # TODO(yamahata): volume attach time
         ebs = {'volumeId': os_volume.id,
                'status': _cloud_get_volume_attach_status(os_volume)}
