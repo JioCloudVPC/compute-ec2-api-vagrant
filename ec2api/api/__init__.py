@@ -375,7 +375,7 @@ class Requestify(wsgi.Middleware):
         
     @webob.dec.wsgify(RequestClass=wsgi.Request)
     def __call__(self, req):
-        non_args = ['Action', 'Signature', 'AWSAccessKeyId', 'SignatureMethod',
+        non_args = ['Action', 'Signature', 'JCSAccessKeyId', 'SignatureMethod',
                     'SignatureVersion', 'Version', 'Timestamp']
         args = dict(req.params)
         try:
