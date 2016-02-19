@@ -270,7 +270,7 @@ class EC2KeystoneAuth(wsgi.Middleware):
                 msg = _("Access key not provided")
                 return faults.ec2_error_response(request_id, "AuthFailure", msg,
                                                  status=400)
-    
+
             if 'X-Amz-Signature' in req.params or 'Authorization' in req.headers:
                 params = {}
             else:
@@ -278,7 +278,7 @@ class EC2KeystoneAuth(wsgi.Middleware):
                 params = dict(req.params)
                 # Not part of authentication args
                 params.pop('Signature', None)
-    
+
             cred_dict = {
                 'access': access,
                 'signature': signature,
@@ -343,7 +343,8 @@ class EC2KeystoneAuth(wsgi.Middleware):
                                       api_version=req.params.get('Version'))
 
         req.environ['ec2api.context'] = ctxt
-        appendRequestDict = {'requestid' : request_id}
+        compute_request_id = ctxt.request_id
+        appendRequestDict = {'requestid' : compute_request_id}
         actionName = ec2utils.camelcase_to_underscore(req.params.get('Action'))
         actionName = actionName + "-auth";
         metricLog.reportTime(actionName, addOnInfoPairs = appendRequestDict)
