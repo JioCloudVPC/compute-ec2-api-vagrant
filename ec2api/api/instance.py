@@ -82,16 +82,28 @@ def get_instance_engine():
 
 def run_instances(context, image_id, instance_count=1,
                   key_name=None, security_group_id=None,
-                  security_group=None, user_data=None, instance_type_id=None,
-                  placement=None, kernel_id=None, ramdisk_id=None,
-                  block_device_mapping=None, monitoring=None,
-                  subnet_id=None, disable_api_termination=None,
-                  instance_initiated_shutdown_behavior=None,
-                  private_ip_address=None, client_token=None,
-                  network_interface=None, iam_instance_profile=None,
-                  ebs_optimized=None):
+                  instance_type_id=None,
+                  block_device_mapping=None,
+                  subnet_id=None,
+                  private_ip_address=None):
 
     #_check_min_max_count(min_count, max_count)
+
+    # [varun] Keeping these parameters anyways for future
+    # but not exposing it to user
+    security_group=None
+    user_data=None
+    ebs_optimized=None
+    iam_instance_profile=None
+    client_token=None
+    instance_initiated_shutdown_behavior=None
+    placement=None
+    disable_api_termination=None
+    monitoring=None
+    kernel_id=None
+    ramdisk_id=None
+    network_interface=None
+
     _check_instance_count(instance_count)
 
     if client_token:
@@ -551,13 +563,13 @@ def describe_instance_attribute(context, instance_id, attribute):
 
     attribute_formatter = {
         'blockDeviceMapping': _format_attr_block_device_mapping,
-        'disableApiTermination': _format_attr_disable_api_termination,
+        # 'disableApiTermination': _format_attr_disable_api_termination,
         'groupSet': _format_attr_group_set,
         'instanceType': _format_attr_instance_type,
-        'kernel': _format_attr_kernel,
-        'ramdisk': _format_attr_ramdisk,
-        'rootDeviceName': _format_attr_root_device_name,
-        'userData': _format_attr_user_data,
+        # 'kernel': _format_attr_kernel,
+        # 'ramdisk': _format_attr_ramdisk,
+        # 'rootDeviceName': _format_attr_root_device_name,
+        # 'userData': _format_attr_user_data,
     }
 
     fn = attribute_formatter.get(attribute)
@@ -571,12 +583,14 @@ def describe_instance_attribute(context, instance_id, attribute):
 
 
 def _format_reservation(context, reservation, formatted_instances, os_groups):
+    # Commenting out this group set because it is related to classic instances
+
     return {
         'ownerId': reservation['owner_id'],
         'instancesSet': sorted(formatted_instances,
-                               key=lambda i: i['amiLaunchIndex']),
-        'groupSet': (_format_group_set(context, os_groups)
-                     if os_groups is not None else [])
+                               key=lambda i: i['amiLaunchIndex'])
+        # 'groupSet': (_format_group_set(context, os_groups)
+        #             if os_groups is not None else [])
     }
 
 
@@ -593,9 +607,9 @@ def _format_instance(context, instance, os_instance, ec2_network_interfaces,
         'instanceType': os_flavors.get(os_instance.flavor['id'], 'unknown'),
         'keyName': os_instance.key_name,
         'launchTime': os_instance.created,
-        'placement': {
-            'availabilityZone': getattr(os_instance,
-                                        'OS-EXT-AZ:availability_zone')},
+#        'placement': {
+#            'availabilityZone': getattr(os_instance,
+#                                        'OS-EXT-AZ:availability_zone')},
         'instanceState': _cloud_state_description(
                                 getattr(os_instance, 'OS-EXT-STS:vm_state')),
     }
@@ -647,16 +661,16 @@ def _format_instance(context, instance, os_instance, ec2_network_interfaces,
                              'networkInterfaceSet': ec2_network_interfaces})
         fixed_ip = floating_ip = dns_name = None
         if primary_ec2_network_interface:
-            ec2_instance.update({
-                'subnetId': primary_ec2_network_interface['subnetId'],
-                'groupSet': primary_ec2_network_interface['groupSet']})
+            # ec2_instance.update({
+            #    'subnetId': primary_ec2_network_interface['subnetId'],
+            #    'groupSet': primary_ec2_network_interface['groupSet']})
             fixed_ip = primary_ec2_network_interface['privateIpAddress']
             if 'association' in primary_ec2_network_interface:
                 association = primary_ec2_network_interface['association']
                 floating_ip = association['publicIp']
                 dns_name = association['publicDnsName']
     ec2_instance.update({
-        'privateIpAddress': fixed_ip,
+        # 'privateIpAddress': fixed_ip,
         'privateDnsName': (fixed_ip if CONF.ec2_private_dns_show_ip else
                            getattr(os_instance, 'OS-EXT-SRV-ATTR:hostname',
                                    None)),
@@ -1387,9 +1401,13 @@ def _cloud_state_description(vm_state):
     # in shutdown_terminate flag behavior. So we ignore
     # it here.
     name = _STATE_DESCRIPTION_MAP.get(vm_state, vm_state)
-
-    return {'code': inst_state_name_to_code(name),
-            'name': name}
+    return name
+    # [varun]
+    # For now we will only return name of the state and not the code
+    # This is as per the JCS API for compute
+    # TODO: Remove the following code after testing
+    # return {'code': inst_state_name_to_code(name),
+    #        'name': name}
 
 
 def _cloud_format_instance_bdm(context, os_instance, result,
@@ -1415,6 +1433,7 @@ def _cloud_format_instance_bdm(context, os_instance, result,
                                'os-extended-volumes:volumes_attached', [])
     for os_volume in os_volumes[os_instance.id]:
         os_attachment = next(iter(os_volume.attachments), {})
+        bdm_entry = {}
         device_name = os_attachment.get('device')
         if not device_name:
             continue
@@ -1425,15 +1444,14 @@ def _cloud_format_instance_bdm(context, os_instance, result,
         #volume = ec2utils.get_db_item_by_os_id(context, 'vol', os_volume.id,
         #                                       volumes)
         # TODO(yamahata): volume attach time
-        ebs = {'volumeId': os_volume.id,
-               'status': _cloud_get_volume_attach_status(os_volume)}
+        bdm_entry['volumeId'] = os_volume.id
+        bdm_entry['status'] = _cloud_get_volume_attach_status(os_volume)}
         volume_attached = next((va for va in volumes_attached
                                 if va['id'] == os_volume.id), None)
         if volume_attached and 'delete_on_termination' in volume_attached:
-            ebs['deleteOnTermination'] = (
+            bdm_entry['deleteOnTermination'] = (
                 volume_attached['delete_on_termination'])
-        mapping.append({'deviceName': device_name,
-                        'ebs': ebs})
+        mapping.append(bdm_entry)
 
     if mapping:
         result['blockDeviceMapping'] = mapping

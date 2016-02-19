@@ -376,116 +376,33 @@ class CloudController(object):
 
     @module_and_param_types(instance, 'ami_id', 'int',
                             'str255', 'sg_ids',
-                            'security_group_strs', 'str', 'str',
-                            'dummy', 'aki_id', 'ari_id',
-                            'dummy', 'dummy',
-                            'subnet_id', 'bool',
-                            'str',
-                            'ip', 'str64',
-                            'dummy', 'dummy',
-                            'bool')
+                            'str', 'dummy',
+                            'subnet_id', 'ip')
+
     def run_instances(self, context, image_id, instance_count=1,
                       key_name=None, security_group_id=None,
-                      security_group=None, user_data=None, instance_type_id=None,
-                      placement=None, kernel_id=None, ramdisk_id=None,
-                      block_device_mapping=None, monitoring=None,
-                      subnet_id=None, disable_api_termination=None,
-                      instance_initiated_shutdown_behavior=None,
-                      private_ip_address=None, client_token=None,
-                      network_interface=None, iam_instance_profile=None,
-                      ebs_optimized=None):
+                      instance_type_id=None, block_device_mapping=None,
+                      subnet_id=None, private_ip_address=None):
         """Launches the specified number of instances using an AMI.
 
         Args:
             context (RequestContext): The request context.
             image_id (str): The ID of the AMI.
             instance_count (int): The number of instances to launch.
-                If you specify a number that is more instances than EC2 can
-                launch in the target Availability Zone, EC2 launches no
-                instances.
             key_name (str): The name of the key pair.
             security_group_id (list of str): One or more security group IDs.
-            security_group (list of str): One or more security group names.
-                For VPC mode, you must use security_group_id.
-            user_data (str): Base64-encoded MIME user data for the instances.
             instance_type_id (str): The instance type.
-            placement (dict): Dict can contain:
-                availability_zone (str): Availability Zone for the instance.
-                group_name (str): The name of an existing placement group.
-                    Not used now.
-                tenancy (str): The tenancy of the instance.
-                    Not used now.
-            kernel_id (str): The ID of the kernel.
-            ramdisk_id (str): The ID of the RAM disk.
             block_device_mapping (list of dict): Dict can contain:
                 device_name (str): The device name exposed to the instance
                     (for example, /dev/sdh or xvdh).
-                virtual_name (str): The virtual device name (ephemeral[0..3]).
-                ebs (dict): Dict can contain:
-                    volume_id (str): The ID of the volume (Nova extension).
-                    snapshot_id (str): The ID of the snapshot.
-                    volume_size (str): The size of the volume, in GiBs.
-                    volume_type (str): The volume type.
-                        Not used now.
-                    delete_on_termination (bool): Indicates whether to delete
+                snapshot_id (str): The ID of the snapshot.
+                volume_size (str): The size of the volume, in GiBs.
+                delete_on_termination (bool): Indicates whether to delete
                         the volume on instance termination.
-                    iops (int): he number of IOPS to provision for the volume.
-                        Not used now.
-                    encrypted (boolean): Whether the volume is encrypted.
-                        Not used now.
-                no_device (str): Suppresses the device mapping.
-            monitoring (dict): Dict can contains:
-                enabled (boolean): Enables monitoring for the instance.
-                        Not used now.
             subnet_id (str): The ID of the subnet to launch the instance into.
-            disable_api_termination (boolean): If you set this parameter to
-                true, you can't terminate the instance using the GUI console,
-                CLI, or API.
-                Not used now.
-            instance_initiated_shutdown_behavior (str): Indicates whether an
-                instance stops or terminates when you initiate shutdown from
-                the instance.
-                Not used now.
             private_ip_address (str): The primary IP address.
                 You must specify a value from the IP address range
                 of the subnet.
-            client_token (str): Unique, case-sensitive identifier you provide
-                to ensure idempotency of the request.
-            network_interface (list of dicts): Dict can contain:
-                network_interface_id (str): An existing interface to attach
-                    to a single instance. Requires n=1 instances.
-                device_index (int): The device index. If you are specifying
-                    a network interface in the request, you must provide the
-                    device index.
-                subnet_id (str): The subnet ID. Applies only when creating
-                    a network interface.
-                description (str): A description. Applies only when creating
-                    a network interface.
-                private_ip_address (str): The primary private IP address.
-                    Applies only when creating a network interface.
-                    Requires n=1 network interfaces in launch.
-                security_group_id (str): The ID of the security group.
-                    Applies only when creating a network interface.
-                delete_on_termination (str): Indicates whether to delete
-                    the network interface on instance termination.
-                private_ip_addresses (list of dicts): Dict can contain:
-                    private_ip_address (str): The private IP address.
-                    primary (boolean): Indicates whether the private IP address
-                        is the primary private IP address.
-                    secondary_private_ip_address_count (int): The number of
-                        private IP addresses to assign to the network
-                        interface. For a single network interface, you can't
-                        specify this option and specify more than one private
-                        IP address using private_ip_address.
-                associate_public_ip_address (boolean): Indicates whether
-                    to assign a public IP address to an instance in a VPC.
-            iam_instance_profile (dict): Dict can contains:
-                arn (str): ARN to associate with the instances.
-                    Not used now.
-                name (str): Name of the IIP to associate with the instances.
-                    Not used now.
-            ebs_optimized (boolean): Whether the instance is optimized for EBS.
-                Not used now.
 
         Returns:
             The instance reservation that was created.
