@@ -41,10 +41,18 @@ from ec2api.api import tag
 from ec2api.api import volume
 from ec2api.api import vpc
 from ec2api import exception
+from metricgenerator import publish as metricPublish
 
 CONF = cfg.CONF
 LOG = logging.getLogger(__name__)
 
+metriclog_opt = cfg.StrOpt('monitoring_config',
+                           default='/tmp/config.cfg',
+                           help='Config for details on emitting metrics')
+
+CONF.register_opt(metriclog_opt)
+
+metricPub = metricPublish.Publish("jcs-api", CONF.monitoring_config)
 
 def module_and_param_types(module, *args, **kwargs):
     """Decorator to check types and call function."""
@@ -374,6 +382,7 @@ class CloudController(object):
         This action doesn't apply to security groups for use in EC2-Classic.
         """
 
+    @metricPub.ReportLatency("run_instances-compute", listOfKeys = '{"1":["request_id"]}')
     @module_and_param_types(instance, 'ami_id', 'int',
                             'str255', 'sg_ids',
                             'str', 'dummy',
@@ -411,6 +420,7 @@ class CloudController(object):
         uses the default security group.
         """
 
+    @metricPub.ReportLatency("terminate_instances-compute", listOfKeys = '{"1":["request_id"]}')
     @module_and_param_types(instance, 'i_ids')
     def terminate_instances(self, context, instance_id):
         """Shuts down one or more instances.
@@ -426,6 +436,7 @@ class CloudController(object):
         once, each call succeeds.
         """
 
+    @metricPub.ReportLatency("describe_instance_types-compute", listOfKeys = '{"1":["request_id"]}')
     @module_and_param_types(instance, 'dummy')
     def describe_instance_types(self, context, instance_type_id=None):
         """Describes one or more of instance types.
@@ -438,6 +449,7 @@ class CloudController(object):
             A list of instance types,
         """
 
+    @metricPub.ReportLatency("describe_instances-compute", listOfKeys = '{"1":["request_id"]}')
     @module_and_param_types(instance, 'i_ids', 'filter',
                             'int', 'str')
     def describe_instances(self, context, instance_id=None, filter=None,
@@ -464,6 +476,7 @@ class CloudController(object):
         don't own, we don't include it in the results.
         """
 
+    @metricPub.ReportLatency("reboot_instances-compute", listOfKeys = '{"1":["request_id"]}')
     @module_and_param_types(instance, 'i_ids')
     def reboot_instances(self, context, instance_id):
         """Requests a reboot of one or more instances.
@@ -476,6 +489,7 @@ class CloudController(object):
             true if the request succeeds.
         """
 
+    @metricPub.ReportLatency("stop_instances-compute", listOfKeys = '{"1":["request_id"]}')
     @module_and_param_types(instance, 'i_ids', 'bool')
     def stop_instances(self, context, instance_id, force=False):
         """Stops one or more instances.
@@ -492,6 +506,7 @@ class CloudController(object):
             true if the request succeeds.
         """
 
+    @metricPub.ReportLatency("start_instances-compute", listOfKeys = '{"1":["request_id"]}')
     @module_and_param_types(instance, 'i_ids')
     def start_instances(self, context, instance_id):
         """Starts one or more instances.
@@ -523,6 +538,7 @@ class CloudController(object):
             Specified attribute.
         """
 
+    @metricPub.ReportLatency("describe_key_pairs-compute", listOfKeys = '{"1":["request_id"]}')
     # AK - Comment out filtersa and keynames from describe keypairs for now
     #@module_and_param_types(key_pair, 'str255s', 'filter')
     #def describe_key_pairs(self, context, key_name=None, filter=None):
@@ -539,6 +555,7 @@ class CloudController(object):
             Specified keypairs.
         """
 
+    @metricPub.ReportLatency("create_key_pair-compute", listOfKeys = '{"1":["request_id"]}')
     @module_and_param_types(key_pair, 'str255')
     def create_key_pair(self, context, key_name):
         """Creates a 2048-bit RSA key pair with the specified name.
@@ -551,6 +568,7 @@ class CloudController(object):
             Created keypair.
         """
 
+    @metricPub.ReportLatency("delete_key_pair-compute", listOfKeys = '{"1":["request_id"]}')
     @module_and_param_types(key_pair, 'str255')
     def delete_key_pair(self, context, key_name):
         """Deletes the specified key pair.
@@ -563,6 +581,7 @@ class CloudController(object):
             Returns true if the request succeeds.
         """
 
+    @metricPub.ReportLatency("import_key_pair-compute", listOfKeys = '{"1":["request_id"]}')
     @module_and_param_types(key_pair, 'str255', 'str')
     def import_key_pair(self, context, key_name, public_key_material):
         """Imports the public key from an existing RSA key pair.
@@ -604,6 +623,8 @@ class CloudController(object):
             Specified regions.
         """
 
+    @metricPub.ReportLatency("describe_account_attributes-compute",\
+                             listOfKeys = '{"1":["request_id"]}')
     @module_and_param_types(availability_zone, 'strs')
     def describe_account_attributes(self, context, attribute_name=None):
         """Describes attributes of your EC2 account.
@@ -648,6 +669,8 @@ class CloudController(object):
             The console output of the instance, timestamp and instance id.
         """
 
+    @metricPub.ReportLatency("show_delete_on_termination_flag-compute",\
+                             listOfKeys = '{"1":["request_id"]}')
     @module_and_param_types(volume, 'dummy')
     def show_delete_on_termination_flag(self, context, volume_id):
         """Get the delete on termination flag on the volume id
@@ -662,6 +685,8 @@ class CloudController(object):
         """
 
 
+    @metricPub.ReportLatency("update_delete_on_termination_flag-compute",\
+                             listOfKeys = '{"1":["request_id"]}')
     @module_and_param_types(volume, 'dummy', 'bool')
     def update_delete_on_termination_flag(self, context, volume_id,
                                           delete_on_termination):
@@ -715,6 +740,7 @@ class CloudController(object):
         snapshot.
         """
 
+    @metricPub.ReportLatency("attach_volume-compute", listOfKeys = '{"1":["request_id"]}')
     @module_and_param_types(volume, 'dummy', 'i_id', 'str')
     def attach_volume(self, context, volume_id, instance_id, device):
         """Attaches an EBS volume to a running or stopped instance.
@@ -731,6 +757,7 @@ class CloudController(object):
         The instance and volume must be in the same Availability Zone.
         """
 
+    @metricPub.ReportLatency("detach_volume-compute", listOfKeys = '{"1":["request_id"]}')
     @module_and_param_types(volume, 'dummy', 'i_id', 'str')
     def detach_volume(self, context, volume_id, instance_id=None, device=None,
                       force=None):
@@ -934,6 +961,7 @@ class CloudController(object):
             true if the request succeeds.
         """
 
+    @metricPub.ReportLatency("describe_images-compute", listOfKeys = '{"1":["request_id"]}')
     @module_and_param_types(image, 'amiariaki_ids')
     def describe_images(self, context, image_id=None):
         """Describes one or more of the images available to you.

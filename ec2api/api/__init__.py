@@ -35,7 +35,7 @@ from ec2api import context
 from ec2api import exception
 from ec2api.i18n import _
 from ec2api import wsgi
-
+from metricgenerator.logger import Logger as metricLogger
 
 LOG = logging.getLogger(__name__)
 
@@ -70,11 +70,15 @@ ec2_opts = [
     cfg.ListOpt('supported_api_versions',
                 default=['2016-03-01'],
                 help='List of JCS Versions supported by code.'),
+    cfg.StrOpt('monitoring_config',
+               default='/tmp/config.cfg',
+               help='Config for details on emitting metrics')
 ]
 
 CONF = cfg.CONF
 CONF.register_opts(ec2_opts)
 CONF.import_opt('use_forwarded_for', 'ec2api.api.auth')
+metricLog = metricLogger("jcs-api", CONF.monitoring_config)
 
 if CONF.enable_policy_engine:
     import policy_engine
@@ -108,7 +112,12 @@ class RequestLogging(wsgi.Middleware):
     @webob.dec.wsgify(RequestClass=wsgi.Request)
     def __call__(self, req):
         start = timeutils.utcnow()
+        metricLog.startTime()
         rv = req.get_response(self.application)
+        request_id = req.environ.get("ec2api.context").request_id
+        appendRequestDict = {'requestid' : request_id}
+        actionName = ec2utils.camelcase_to_underscore(req.params.get('Action'))
+        metricLog.reportTime(actionName, addOnInfoPairs = appendRequestDict)
         self.log_request_completion(rv, req, start)
         return rv
 
@@ -209,6 +218,7 @@ class EC2KeystoneAuth(wsgi.Middleware):
 
     @webob.dec.wsgify(RequestClass=wsgi.Request)
     def __call__(self, req):
+        metricLog.startTime()
         request_id = context.generate_request_id()
 
         # NOTE(alevine) We need to calculate the hash here because
@@ -333,7 +343,10 @@ class EC2KeystoneAuth(wsgi.Middleware):
                                       api_version=req.params.get('Version'))
 
         req.environ['ec2api.context'] = ctxt
-
+        appendRequestDict = {'requestid' : request_id}
+        actionName = ec2utils.camelcase_to_underscore(req.params.get('Action'))
+        actionName = actionName + "-auth";
+        metricLog.reportTime(actionName, addOnInfoPairs = appendRequestDict)
         return self.application
 
 
