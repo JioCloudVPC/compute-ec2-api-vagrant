@@ -1445,7 +1445,7 @@ def _cloud_format_instance_bdm(context, os_instance, result,
         #                                       volumes)
         # TODO(yamahata): volume attach time
         bdm_entry['volumeId'] = os_volume.id
-        bdm_entry['status'] = _cloud_get_volume_attach_status(os_volume)}
+        bdm_entry['status'] = _cloud_get_volume_attach_status(os_volume)
         volume_attached = next((va for va in volumes_attached
                                 if va['id'] == os_volume.id), None)
         if volume_attached and 'delete_on_termination' in volume_attached:
