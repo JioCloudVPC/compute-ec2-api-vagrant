@@ -27,15 +27,24 @@ from oslo_config import cfg
 from oslo_log import log as logging
 
 from ec2api.i18n import _
+from ec2api.db import api as db_api
+try:
+    import xml.etree.cElementTree as xml_tree
+except ImportError:
+    import xml.etree.ElementTree as xml_tree
 
 utils_opts = [
     cfg.StrOpt('tempdir',
                help='Explicitly specify the temporary working directory'),
+    cfg.StrOpt('sbs_name_space',
+               default="http://compute.jiocloudservices.com/doc/2016-03-01/",
+               help="config for sbs namespace")
 ]
 CONF = cfg.CONF
 CONF.register_opts(utils_opts)
 
 LOG = logging.getLogger(__name__)
+xml_tree.register_namespace("",CONF.sbs_name_space)
 
 
 def _get_my_ip():
@@ -113,3 +122,28 @@ def utf8(value):
         return value.encode('utf-8')
     assert isinstance(value, str)
     return value
+
+def change_os_id_to_ec2_id(context,text,object_name):
+    try:
+        root=xml_tree.fromstring(text)
+    except xml_tree.ParseError:
+        return text
+    temp=root.tag.split('}')
+    ns=temp[0]
+    ns=ns+"}"
+    if ns!="{"+CONF.sbs_name_space+"}":
+        LOG.debug("Found different namespace for sbs api response. Not processing.")
+        return text
+    # the namespace and CONF.sbs_name_space should be exactly similar.
+    # or else this will fail. This code was written assuming they will be same.
+    for elem in root.iter(ns+object_name):
+        elem_text=elem.text
+        split_id=elem_text.split(ns)
+        os_instance_id=split_id[0]
+        item=db_api.get_item_by_os_id(context,os_instance_id)
+        if item is None or not isInstance(item,dict):
+            continue
+        instance_ec2_id=item.get("id")
+        elem.text=str(instance_ec2_id)
+    text=xml_tree.tostring(root)
+    return text

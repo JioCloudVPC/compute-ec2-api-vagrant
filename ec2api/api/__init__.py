@@ -36,6 +36,7 @@ from ec2api import exception
 from ec2api.i18n import _
 from ec2api import wsgi
 from metricgenerator.logger import Logger as metricLogger
+from ec2api import utils as utils
 
 LOG = logging.getLogger(__name__)
 
@@ -72,7 +73,7 @@ ec2_opts = [
                 help='List of JCS Versions supported by code.'),
     cfg.StrOpt('monitoring_config',
                default='/tmp/config.cfg',
-               help='Config for details on emitting metrics')
+               help='Config for details on emitting metrics'),
 ]
 
 CONF = cfg.CONF
@@ -101,7 +102,7 @@ class FaultWrapper(wsgi.Middleware):
         try:
             return req.get_response(self.application)
         except Exception:
-            LOG.exception(_("FaultWrapper cathes error"))
+            LOG.exception(_("FaultWrapper catches error"))
             return faults.Fault(webob.exc.HTTPInternalServerError())
 
 
@@ -379,14 +380,17 @@ class Requestify(wsgi.Middleware):
         verify = CONF.ssl_ca_file or not CONF.ssl_insecure
         response = requests.request('POST', sbs_url, verify=verify,
                                     params=params, headers=headers)
-
+        res=str(response.text)
+        if action =="DescribeVolumes" and response.status_code==200:
+            res = utils.change_os_id_to_ec2_id(context,response.text,"instanceID")
+            
         status_code = response.status_code
         resp = webob.Response()
         resp.status = status_code
         resp.headers['Content-Type'] = 'text/xml'
-        resp.body = str(response.text)
+        resp.body = res
         return resp
-        
+ 
     @webob.dec.wsgify(RequestClass=wsgi.Request)
     def __call__(self, req):
         non_args = ['Action', 'Signature', 'JCSAccessKeyId', 'SignatureMethod',

@@ -184,6 +184,13 @@ def restore_item(context, kind, data):
 
 
 @require_context
+def get_item_by_os_id(context,os_id):
+    return (_unpack_item_data(model_query(context, models.Item).
+                              filter_by(project_id=context.project_id,
+                                         os_id=os_id).first()))
+
+
+@require_context
 def get_items(context, kind):
     return [_unpack_item_data(item)
             for item in (model_query(context, models.Item).
