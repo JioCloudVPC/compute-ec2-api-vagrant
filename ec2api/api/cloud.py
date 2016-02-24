@@ -397,128 +397,6 @@ class CloudController(object):
             Information about the detachment.
         """
 
-    """ 
-    Following APIs are not owned by compute team. SBS Team maintains them
-    We are acting as a transparent proxy
-    """
-
-    @module_and_param_types(volume, 'str', 'int',
-                            'snap_id', 'str', 'int',
-                            'bool', 'str')
-    def create_volume(self, context, availability_zone=None, size=None,
-                      snapshot_id=None, volume_type=None, iops=None,
-                      encrypted=None, kms_key_id=None):
-        """Creates an EBS volume.
-
-        Args:
-            context (RequestContext): The request context.
-            availability_zone (str): The Availability Zone in which to create
-                the volume.
-                It's required by AWS but optional for legacy Nova EC2 API.
-            instance_id (str): The size of the volume, in GiBs.
-                Valid values: 1-1024
-                If you're creating the volume from a snapshot and don't specify
-                a volume size, the default is the snapshot size.
-            snapshot_id (str): The snapshot from which to create the volume.
-                Required if you are creating a volume from a snapshot.
-            volume_type (str): The volume type. One of volume types created
-                in used Block Storage.
-            iops (int): The number of IOPS to provision for the volume.
-                Valid values: Range is 100 to 4,000.
-                Not used now.
-            encrypted (boolean): Whether the volume should be encrypted.
-                Not used now.
-            kms_key_id (str): The full ARN of AWS KMS master key to use when
-                creating the encrypted volume.
-                Not used now.
-
-        Returns:
-            Information about the volume.
-
-        You can create a new empty volume or restore a volume from an EBS
-        snapshot.
-        """
-
-    @module_and_param_types(volume, 'dummy')
-    def delete_volume(self, context, volume_id):
-        """Deletes the specified EBS volume.
-
-        Args:
-            context (RequestContext): The request context.
-            volume_id (str): The ID of the volume.
-
-        Returns:
-            Returns true if the request succeeds.
-
-        The volume must be in the available state.
-        """
-
-    @module_and_param_types(volume, 'dummy', 'filter',
-                            'int', 'str')
-    def describe_volumes(self, context, volume_id=None, filter=None,
-                         max_results=None, next_token=None):
-        """Describes the specified EBS volumes.
-
-        Args:
-            context (RequestContext): The request context.
-            volume_id (list of str): One or more volume IDs.
-            filter (list of filter dict): You can specify filters so that the
-                response includes information for only certain volumes.
-            max_results (int): The maximum number of items to return.
-                Not used now.
-            next_token (str): The token for the next set of items to return.
-                Not used now.
-
-        Returns:
-            A list of volumes.
-        """
-    @module_and_param_types(snapshot, 'vol_id', 'str')
-    def create_snapshot(self, context, volume_id, description=None):
-        """Creates a snapshot of an EBS volume.
-
-        Args:
-            context (RequestContext): The request context.
-            volume_id (str): The ID of the volume.
-            description (str): A description for the snapshot.
-
-        Returns:
-            Information about the snapshot.
-        """
-
-    @module_and_param_types(snapshot, 'snap_id')
-    def delete_snapshot(self, context, snapshot_id):
-        """Deletes the specified snapshot.
-
-        Args:
-            context (RequestContext): The request context.
-            snapshot_id (str): The ID of the snapshot.
-
-        Returns:
-            Returns true if the request succeeds.
-        """
-
-    @module_and_param_types(snapshot, 'snap_ids', 'strs',
-                            'strs', 'filter')
-    def describe_snapshots(self, context, snapshot_id=None, owner=None,
-                           restorable_by=None, filter=None):
-        """Describes one or more of the snapshots available to you.
-
-        Args:
-            context (RequestContext): The request context.
-            snapshot_id (list of str): One or more snapshot IDs.
-            owner (list of str): Returns the snapshots owned by the specified
-                owner.
-                Not used now.
-            restorable_by (list of str): One or more accounts IDs that can
-                create volumes from the snapshot.
-                Not used now.
-            filter (list of filter dict): You can specify filters so that the
-                response includes information for only certain snapshots.
-
-        Returns:
-            A list of snapshots.
-        """
-
 """
 LegacyCloudController has the APIs that we will not support in first phase
 of launch. We can enable them using the legacy_support flag
@@ -1760,4 +1638,120 @@ class LegacyCloudController(CloudController):
         Returns:
             A list of tags.
         """
-    
+
+    @module_and_param_types(volume, 'str', 'int',
+                            'snap_id', 'str', 'int',
+                            'bool', 'str')
+    def create_volume(self, context, availability_zone=None, size=None,
+                      snapshot_id=None, volume_type=None, iops=None,
+                      encrypted=None, kms_key_id=None):
+        """Creates an EBS volume.
+
+        Args:
+            context (RequestContext): The request context.
+            availability_zone (str): The Availability Zone in which to create
+                the volume.
+                It's required by AWS but optional for legacy Nova EC2 API.
+            instance_id (str): The size of the volume, in GiBs.
+                Valid values: 1-1024
+                If you're creating the volume from a snapshot and don't specify
+                a volume size, the default is the snapshot size.
+            snapshot_id (str): The snapshot from which to create the volume.
+                Required if you are creating a volume from a snapshot.
+            volume_type (str): The volume type. One of volume types created
+                in used Block Storage.
+            iops (int): The number of IOPS to provision for the volume.
+                Valid values: Range is 100 to 4,000.
+                Not used now.
+            encrypted (boolean): Whether the volume should be encrypted.
+                Not used now.
+            kms_key_id (str): The full ARN of AWS KMS master key to use when
+                creating the encrypted volume.
+                Not used now.
+
+        Returns:
+            Information about the volume.
+
+        You can create a new empty volume or restore a volume from an EBS
+        snapshot.
+        """
+
+    @module_and_param_types(volume, 'dummy')
+    def delete_volume(self, context, volume_id):
+        """Deletes the specified EBS volume.
+
+        Args:
+            context (RequestContext): The request context.
+            volume_id (str): The ID of the volume.
+
+        Returns:
+            Returns true if the request succeeds.
+
+        The volume must be in the available state.
+        """
+
+    @module_and_param_types(volume, 'dummy', 'filter',
+                            'int', 'str')
+    def describe_volumes(self, context, volume_id=None, filter=None,
+                         max_results=None, next_token=None):
+        """Describes the specified EBS volumes.
+
+        Args:
+            context (RequestContext): The request context.
+            volume_id (list of str): One or more volume IDs.
+            filter (list of filter dict): You can specify filters so that the
+                response includes information for only certain volumes.
+            max_results (int): The maximum number of items to return.
+                Not used now.
+            next_token (str): The token for the next set of items to return.
+                Not used now.
+
+        Returns:
+            A list of volumes.
+        """
+    @module_and_param_types(snapshot, 'vol_id', 'str')
+    def create_snapshot(self, context, volume_id, description=None):
+        """Creates a snapshot of an EBS volume.
+
+        Args:
+            context (RequestContext): The request context.
+            volume_id (str): The ID of the volume.
+            description (str): A description for the snapshot.
+
+        Returns:
+            Information about the snapshot.
+        """
+
+    @module_and_param_types(snapshot, 'snap_id')
+    def delete_snapshot(self, context, snapshot_id):
+        """Deletes the specified snapshot.
+
+        Args:
+            context (RequestContext): The request context.
+            snapshot_id (str): The ID of the snapshot.
+
+        Returns:
+            Returns true if the request succeeds.
+        """
+
+    @module_and_param_types(snapshot, 'snap_ids', 'strs',
+                            'strs', 'filter')
+    def describe_snapshots(self, context, snapshot_id=None, owner=None,
+                           restorable_by=None, filter=None):
+        """Describes one or more of the snapshots available to you.
+
+        Args:
+            context (RequestContext): The request context.
+            snapshot_id (list of str): One or more snapshot IDs.
+            owner (list of str): Returns the snapshots owned by the specified
+                owner.
+                Not used now.
+            restorable_by (list of str): One or more accounts IDs that can
+                create volumes from the snapshot.
+                Not used now.
+            filter (list of filter dict): You can specify filters so that the
+                response includes information for only certain snapshots.
+
+        Returns:
+            A list of snapshots.
+        """
