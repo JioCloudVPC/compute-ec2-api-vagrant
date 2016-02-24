@@ -846,6 +846,11 @@ def _create_root_bdm_from_image(context, os_image):
         if os_image.properties != None and os_image.properties.has_key("root_device"):
             root_bdm["device_name"] = str(os_image.properties["root_device"])
 
+    # Fix for https://jira.ril.com/browse/JCC-109
+    # Root BDM was not mounting
+    if root_bdm.has_key("device_name"):
+        root_bdm.pop("device_name")
+
     return root_bdm
 
 
@@ -882,6 +887,12 @@ def _parse_block_device_mapping_v2(context, block_device_mapping,
                                                                  root_device,
                                                                  root_snapshot_id,
                                                                  os_image)
+
+        # Fix for https://jira.ril.com/browse/JCC-109
+        # BDM was not mounting
+        if result.has_key("device_name"):
+            result.pop("device_name")
+
         bdm_list.append(result)
         if is_root_dev:
             bdm_has_root_device = True
