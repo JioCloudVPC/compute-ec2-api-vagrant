@@ -30,6 +30,9 @@ ec2_opts = [
     cfg.BoolOpt('full_vpc_support',
                 default=True,
                 help='True if server supports Neutron for full VPC access'),
+    cfg.BoolOpt('legacy_support',
+                default=False,
+                help='True if compute supports legacy APIs that it does not own'),
 ]
 
 CONF = cfg.CONF

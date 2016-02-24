@@ -55,8 +55,8 @@ class APIRequest(object):
         self.action = action
         self.version = version
         self.args = args
-        if CONF.full_vpc_support:
-            self.controller = cloud.VpcCloudController()
+        if CONF.legacy_support and CONF.full_vpc_support:
+            self.controller = cloud.LegacyCloudController()
         else:
             self.controller = cloud.CloudController()
 

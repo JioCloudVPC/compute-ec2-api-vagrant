@@ -100,288 +100,6 @@ class CloudController(object):
     def __str__(self):
         return 'CloudController'
 
-    @module_and_param_types(address, 'str255')
-    def allocate_address(self, context, domain=None):
-        """Acquires an Elastic IP address.
-
-        Args:
-            context (RequestContext): The request context.
-            domain (str): Set to vpc to allocate the address for use with
-                instances in a VPC.
-                Default: The address is for use in EC2-Classic.
-                Valid values: vpc
-
-        Returns:
-            The Elastic IP address information.
-
-        An Elastic IP address is for use either in the EC2-Classic platform
-        or in a VPC.
-        """
-
-    @module_and_param_types(address, 'ip', 'i_id',
-                            'eipalloc_id', 'eni_id',
-                            'ip', 'bool')
-    def associate_address(self, context, public_ip=None, instance_id=None,
-                          allocation_id=None, network_interface_id=None,
-                          private_ip_address=None, allow_reassociation=False):
-        """Associates an Elastic IP with an instance or a network interface.
-
-        Args:
-            context (RequestContext): The request context.
-            public_ip (str): The Elastic IP address.
-                Required for Elastic IP addresses for use with instances
-                in EC2-Classic.
-            instance_id (str): The ID of the instance.
-                The operation fails if you specify an instance ID unless
-                exactly one network interface is attached.
-                Required for EC2-Classic.
-            allocation_id (str): The allocation ID.
-                Required for EC2-VPC.
-            network_interface_id (str): The ID of the network interface.
-            private_ip_address (str): The primary or secondary private IP.
-            allow_reassociation (boolean): Allows an Elastic IP address that is
-                already associated to be re-associated.
-                Otherwise, the operation fails.
-
-        Returns:
-            true if the request succeeds.
-            [EC2-VPC] The ID that represents the association of the Elastic IP.
-
-        For a VPC, you can specify either instance_id or network_interface_id,
-        but not both.
-        If the instance has more than one network interface, you must specify
-        a network interface ID.
-        If no private IP address is specified, the Elastic IP address
-        is associated with the primary private IP address.
-        [EC2-Classic, default VPC] If the Elastic IP address is already
-        associated with a different instance, it is disassociated from that
-        instance and associated with the specified instance.
-        This is an idempotent operation.
-        """
-
-    @module_and_param_types(address, 'ip',
-                            'eipassoc_id')
-    def disassociate_address(self, context, public_ip=None,
-                             association_id=None):
-        """Disassociates an Elastic IP address.
-
-        Args:
-            context (RequestContext): The request context.
-            public_ip (str): The Elastic IP address.
-                Required for EC2-Classic.
-            assossiation_id (str): The association ID.
-                Required for EC2-VPC
-
-        Returns:
-            true if the request succeeds.
-
-        Disassociates an Elastic IP address from the instance or network
-        interface it's associated with.
-        This is an idempotent action.
-        """
-
-    @module_and_param_types(address, 'ip',
-                            'eipalloc_id')
-    def release_address(self, context, public_ip=None, allocation_id=None):
-        """Releases the specified Elastic IP address.
-
-        Args:
-            context (RequestContext): The request context.
-            public_ip (str): The Elastic IP address.
-            allocation_id (str): The allocation ID.
-
-        Returns:
-            true if the requests succeeds.
-
-        If you attempt to release an Elastic IP address that you already
-        released, you'll get an AuthFailure error if the address is already
-        allocated to another AWS account.
-        [EC2-Classic, default VPC] Releasing an Elastic IP address
-        automatically disassociates it from any instance that it's associated
-        with.
-        [Nondefault VPC] You must use DisassociateAddress to disassociate the
-        Elastic IP address before you try to release it.
-        """
-
-    @module_and_param_types(address, 'ips', 'eipalloc_ids',
-                            'filter')
-    def describe_addresses(self, context, public_ip=None, allocation_id=None,
-                           filter=None):
-        """Describes one or more of your Elastic IP addresses.
-
-        Args:
-            context (RequestContext): The request context.
-            public_ip (list of str): One or more Elastic IP addresses.
-            allocation_id (list of str): One or more allocation IDs.
-            filter (list of filter dict): You can specify filters so that the
-                response includes information for only certain Elastic IP
-                addresses.
-
-        Returns:
-            A list of Elastic IP addresses.
-        """
-
-    @module_and_param_types(security_group, 'security_group_strs',
-                            'sg_ids', 'filter')
-    def describe_security_groups(self, context, group_name=None,
-                                 group_id=None, filter=None):
-        """Describes one or more of your security groups.
-
-        Args:
-            context (RequestContext): The request context.
-            group_name (list of str): One or more security group names.
-            group_id (list of str): One or more security group IDs.
-            filter (list of filter dict): You can specify filters so that the
-                response includes information for only certain security groups.
-
-        Returns:
-            A list of security groups.
-        """
-
-    @module_and_param_types(security_group, 'security_group_str',
-                            'security_group_str', 'vpc_id')
-    def create_security_group(self, context, group_name,
-                              group_description, vpc_id=None):
-        """Creates a security group.
-
-        Args:
-            context (RequestContext): The request context.
-            group_name (str): The name of the security group.
-            group_description (str): A description for the security group.
-            vpc_id (str): [EC2-VPC] The ID of the VPC.
-
-        Returns:
-            true if the requests succeeds.
-            The ID of the security group.
-
-        You can have a security group for use in EC2-Classic with the same name
-        as a security group for use in a VPC. However, you can't have two
-        security groups for use in EC2-Classic with the same name or two
-        security groups for use in a VPC with the same name.
-        You have a default security group for use in EC2-Classic and a default
-        security group for use in your VPC. If you don't specify a security
-        group when you launch an instance, the instance is launched into the
-        appropriate default security group. A default security group includes
-        a default rule that grants instances unrestricted network access to
-        each other.
-        group_name and group_description restrictions:
-        up to 255 characters in length,
-        EC2-Classic: ASCII characters,
-        EC2-VPC: a-z, A-Z, 0-9, spaces, and ._-:/()#,@[]+=&;{}!$*
-        """
-
-    @module_and_param_types(security_group, 'security_group_str', 'sg_id')
-    def delete_security_group(self, context, group_name=None, group_id=None):
-        """Deletes a security group.
-
-        Args:
-            context (RequestContext): The request context.
-            group_name (str): The name of the security group.
-            group_id (str): The ID of the security group.
-
-        Returns:
-            true if the requests succeeds.
-
-        [EC2-Classic, default VPC] You can specify either GroupName or GroupId
-        If you attempt to delete a security group that is associated with an
-        instance, or is referenced by another security group, the operation
-        fails.
-        """
-
-    @module_and_param_types(security_group, 'sg_id',
-                            'security_group_str', 'dummy')
-    def authorize_security_group_ingress(self, context, group_id=None,
-                                         group_name=None, ip_permissions=None):
-        """Adds one or more ingress rules to a security group.
-
-        Args:
-            context (RequestContext): The request context.
-            group_id (str): The ID of the security group.
-            group_name (str): [EC2-Classic, default VPC] The name of the
-                security group.
-            ip_permissions (list of dicts): Dict can contain:
-                ip_protocol (str): The IP protocol name or number.
-                    Use -1 to specify all.
-                    For EC2-Classic, security groups can have rules only for
-                    TCP, UDP, and ICMP.
-                from_port (str): The start of port range for the TCP and UDP
-                    protocols, or an ICMP type number. For the ICMP type
-                    number, you can use -1 to specify all ICMP types.
-                to_port (str): The end of port range for the TCP and UDP
-                    protocols, or an ICMP code number. For the ICMP code
-                    number, you can use -1 to specify all ICMP codes for the
-                    ICMP type.
-                groups (list of dicts): Dict can contain:
-                    group_id (str): The ID of the source security group. You
-                        can't specify a source security group and a CIDR IP
-                        address range.
-                    user_id (str): [EC2-Classic] The ID of the AWS account that
-                        owns the source security group, if it's not the current
-                        AWS account.
-                    cidr_ip (str): The CIDR IP address range. You can't specify
-                    this parameter when specifying a source security group.
-
-        Returns:
-            true if the requests succeeds.
-        """
-
-    @module_and_param_types(security_group, 'sg_id',
-                            'security_group_str', 'dummy')
-    def revoke_security_group_ingress(self, context, group_id=None,
-                                      group_name=None, ip_permissions=None):
-        """Removes one or more ingress rules from a security group.
-
-        Args:
-            context (RequestContext): The request context.
-            group_id (str): The ID of the security group.
-            group_name (str): [EC2-Classic, default VPC] The name of the
-                security group.
-            ip_permissions (list of dicts): See
-                authorize_security_group_ingress
-
-        Returns:
-            true if the requests succeeds.
-
-        The values that you specify in the revoke request (for example, ports)
-        must match the existing rule's values for the rule to be removed.
-        """
-
-    @module_and_param_types(security_group, 'sg_id', 'dummy')
-    def authorize_security_group_egress(self, context, group_id,
-                                        ip_permissions=None):
-        """Adds one or more egress rules to a security group for use with a VPC.
-
-        Args:
-            context (RequestContext): The request context.
-            group_id (str): The ID of the security group.
-            ip_permissions (list of dicts): See
-                authorize_security_group_ingress
-
-        Returns:
-            true if the requests succeeds.
-
-        This action doesn't apply to security groups for use in EC2-Classic.
-        """
-
-    @module_and_param_types(security_group, 'sg_id', 'dummy')
-    def revoke_security_group_egress(self, context, group_id,
-                                     ip_permissions=None):
-        """Removes one or more egress rules from a security group for EC2-VPC.
-
-        Args:
-            context (RequestContext): The request context.
-            group_id (str): The ID of the security group.
-            ip_permissions (list of dicts): See
-                authorize_security_group_ingress
-
-        Returns:
-            true if the requests succeeds.
-
-        The values that you specify in the revoke request (for example, ports)
-        must match the existing rule's values for the rule to be revoked.
-        This action doesn't apply to security groups for use in EC2-Classic.
-        """
-
     @metricPub.ReportLatency("run_instances-compute", listOfKeys = '{"1":["request_id"]}')
     @module_and_param_types(instance, 'ami_id', 'int',
                             'str255', 'sg_ids',
@@ -414,26 +132,10 @@ class CloudController(object):
                 of the subnet.
 
         Returns:
-            The instance reservation that was created.
+            The instance set that was created.
 
         If you don't specify a security group when launching an instance, EC2
         uses the default security group.
-        """
-
-    @metricPub.ReportLatency("terminate_instances-compute", listOfKeys = '{"1":["request_id"]}')
-    @module_and_param_types(instance, 'i_ids')
-    def terminate_instances(self, context, instance_id):
-        """Shuts down one or more instances.
-
-        Args:
-            context (RequestContext): The request context.
-            instance_id (list of str): One or more instance IDs.
-
-        Returns:
-            A list of instance state changes.
-
-        This operation is idempotent; if you terminate an instance more than
-        once, each call succeeds.
         """
 
     @metricPub.ReportLatency("describe_instance_types-compute", listOfKeys = '{"1":["request_id"]}')
@@ -474,6 +176,22 @@ class CloudController(object):
         information for all relevant instances. If you specify an invalid
         instance ID, you receive an error. If you specify an instance that you
         don't own, we don't include it in the results.
+        """
+
+    @metricPub.ReportLatency("terminate_instances-compute", listOfKeys = '{"1":["request_id"]}')
+    @module_and_param_types(instance, 'i_ids')
+    def terminate_instances(self, context, instance_id):
+        """Shuts down one or more instances.
+
+        Args:
+            context (RequestContext): The request context.
+            instance_id (list of str): One or more instance IDs.
+
+        Returns:
+            A list of instance state changes.
+
+        This operation is idempotent; if you terminate an instance more than
+        once, each call succeeds.
         """
 
     @metricPub.ReportLatency("reboot_instances-compute", listOfKeys = '{"1":["request_id"]}')
@@ -517,25 +235,6 @@ class CloudController(object):
 
         Returns:
             true if the request succeeds.
-        """
-
-    @module_and_param_types(instance, 'i_id', 'str255')
-    def describe_instance_attribute(self, context, instance_id, attribute):
-        """Describes the specified attribute of the specified instance.
-
-        Args:
-            context (RequestContext): The request context.
-            instance_id (str): The ID of the instance.
-            attribute (str): The instance attribute.
-                Valid values: blockDeviceMapping | disableApiTermination |
-                ebsOptimized (unsupported now) | groupSet |
-                instanceInitiatedShutdownBehavior | instanceType | kernel |
-                productCodes (unsupported now) | ramdisk | rootDeviceName |
-                sourceDestCheck (unsupported now) |
-                sriovNetSupport (unsupported now) | userData
-
-        Returns:
-            Specified attribute.
         """
 
     @metricPub.ReportLatency("describe_key_pairs-compute", listOfKeys = '{"1":["request_id"]}')
@@ -596,33 +295,6 @@ class CloudController(object):
             Imported keypair.
         """
 
-    @module_and_param_types(availability_zone, 'strs', 'filter')
-    def describe_availability_zones(self, context, zone_name=None,
-                                    filter=None):
-        """Describes one or more of the available Availability Zones.
-
-        Args:
-            context (RequestContext): The request context.
-            zone_name (list of str): On or more zone names.
-            filter (list of filter dict): On or more filters.
-
-        Returns:
-            Specified availability zones.
-        """
-
-    @module_and_param_types(availability_zone, 'strs', 'filter')
-    def describe_regions(self, context, region_name=None, filter=None):
-        """Describes one or more regions that are currently available to you.
-
-        Args:
-            context (RequestContext): The request context.
-            region_name (list of str): On or more region names.
-            filter (list of filter dict): On or more filters.
-
-        Returns:
-            Specified regions.
-        """
-
     @metricPub.ReportLatency("describe_account_attributes-compute",\
                              listOfKeys = '{"1":["request_id"]}')
     @module_and_param_types(availability_zone, 'strs')
@@ -640,33 +312,6 @@ class CloudController(object):
 
         Returns:
             Information about one or more account attributes.
-        """
-
-    @module_and_param_types(instance, 'i_id_or_ids')
-    def get_password_data(self, context, instance_id):
-        """Retrieves the encrypted administrator password for Windows instance.
-
-        Args:
-            context (RequestContext): The request context.
-            instance_id (str): ID of the Windows instance
-
-        Returns:
-            The password of the instance, timestamp and instance id.
-
-        The password is encrypted using the key pair that you specified when
-        you launched the instance.
-        """
-
-    @module_and_param_types(instance, 'i_id_or_ids')
-    def get_console_output(self, context, instance_id):
-        """Gets the console output for the specified instance.
-
-        Args:
-            context (RequestContext): The request context.
-            instance_id (str): ID of the instance
-
-        Returns:
-            The console output of the instance, timestamp and instance id.
         """
 
     @metricPub.ReportLatency("show_delete_on_termination_flag-compute",\
@@ -702,42 +347,17 @@ class CloudController(object):
             delete on termination flag
         """
 
-
-    @module_and_param_types(volume, 'str', 'int',
-                            'snap_id', 'str', 'int',
-                            'bool', 'str')
-    def create_volume(self, context, availability_zone=None, size=None,
-                      snapshot_id=None, volume_type=None, iops=None,
-                      encrypted=None, kms_key_id=None):
-        """Creates an EBS volume.
+    @metricPub.ReportLatency("describe_images-compute", listOfKeys = '{"1":["request_id"]}')
+    @module_and_param_types(image, 'amiariaki_ids')
+    def describe_images(self, context, image_id=None):
+        """Describes one or more of the images available to you.
 
         Args:
             context (RequestContext): The request context.
-            availability_zone (str): The Availability Zone in which to create
-                the volume.
-                It's required by AWS but optional for legacy Nova EC2 API.
-            instance_id (str): The size of the volume, in GiBs.
-                Valid values: 1-1024
-                If you're creating the volume from a snapshot and don't specify
-                a volume size, the default is the snapshot size.
-            snapshot_id (str): The snapshot from which to create the volume.
-                Required if you are creating a volume from a snapshot.
-            volume_type (str): The volume type. One of volume types created
-                in used Block Storage.
-            iops (int): The number of IOPS to provision for the volume.
-                Valid values: Range is 100 to 4,000.
-                Not used now.
-            encrypted (boolean): Whether the volume should be encrypted.
-                Not used now.
-            kms_key_id (str): The full ARN of AWS KMS master key to use when
-                creating the encrypted volume.
-                Not used now.
+            image_id (list of str): One or more image IDs.
 
         Returns:
-            Information about the volume.
-
-        You can create a new empty volume or restore a volume from an EBS
-        snapshot.
+            A list of images.
         """
 
     @metricPub.ReportLatency("attach_volume-compute", listOfKeys = '{"1":["request_id"]}')
@@ -775,6 +395,48 @@ class CloudController(object):
 
         Returns:
             Information about the detachment.
+        """
+
+    """ 
+    Following APIs are not owned by compute team. SBS Team maintains them
+    We are acting as a transparent proxy
+    """
+
+    @module_and_param_types(volume, 'str', 'int',
+                            'snap_id', 'str', 'int',
+                            'bool', 'str')
+    def create_volume(self, context, availability_zone=None, size=None,
+                      snapshot_id=None, volume_type=None, iops=None,
+                      encrypted=None, kms_key_id=None):
+        """Creates an EBS volume.
+
+        Args:
+            context (RequestContext): The request context.
+            availability_zone (str): The Availability Zone in which to create
+                the volume.
+                It's required by AWS but optional for legacy Nova EC2 API.
+            instance_id (str): The size of the volume, in GiBs.
+                Valid values: 1-1024
+                If you're creating the volume from a snapshot and don't specify
+                a volume size, the default is the snapshot size.
+            snapshot_id (str): The snapshot from which to create the volume.
+                Required if you are creating a volume from a snapshot.
+            volume_type (str): The volume type. One of volume types created
+                in used Block Storage.
+            iops (int): The number of IOPS to provision for the volume.
+                Valid values: Range is 100 to 4,000.
+                Not used now.
+            encrypted (boolean): Whether the volume should be encrypted.
+                Not used now.
+            kms_key_id (str): The full ARN of AWS KMS master key to use when
+                creating the encrypted volume.
+                Not used now.
+
+        Returns:
+            Information about the volume.
+
+        You can create a new empty volume or restore a volume from an EBS
+        snapshot.
         """
 
     @module_and_param_types(volume, 'dummy')
@@ -857,239 +519,11 @@ class CloudController(object):
             A list of snapshots.
         """
 
-    @module_and_param_types(image, 'i_id', 'str', 'str',
-                            'bool', 'dummy')
-    def create_image(self, context, instance_id, name=None, description=None,
-                     no_reboot=False, block_device_mapping=None):
-        """Creates an EBS-backed AMI from an EBS-backed instance.
-
-        Args:
-            context (RequestContext): The request context.
-            instance_id (str): The ID of the instance.
-            name (str): A name for the new image.
-                It's required by AWS but optional for legacy Nova EC2 API.
-            description (str): A description for the new image.
-                Not used now.
-            no_reboot (boolean): When the parameter is set to false, EC2
-                attempts to shut down the instance cleanly before image
-                creation and then reboots the instance.
-            block_device_mapping (list of dict): Dict can contain:
-                device_name (str): The device name exposed to the instance
-                    (for example, /dev/sdh or xvdh).
-                virtual_name (str): The virtual device name (ephemeral[0..3]).
-                ebs (dict): Dict can contain:
-                    volume_id (str): The ID of the volume (Nova extension).
-                    snapshot_id (str): The ID of the snapshot.
-                    volume_size (str): The size of the volume, in GiBs.
-                    volume_type (str): The volume type.
-                        Not used now.
-                    delete_on_termination (bool): Indicates whether to delete
-                        the volume on instance termination.
-                    iops (int): he number of IOPS to provision for the volume.
-                        Not used now.
-                    encrypted (boolean): Whether the volume is encrypted.
-                        Not used now.
-                no_device (str): Suppresses the device mapping.
-
-        Returns:
-            The ID of the new AMI.
-        """
-        return image.create_image(context, instance_id, name, description,
-                                  no_reboot, block_device_mapping)
-
-    @module_and_param_types(image, 'str', 'str',
-                            'str', 'str',
-                            'str', 'dummy',
-                            'str', 'aki_id',
-                            'ari_id', 'str')
-    def register_image(self, context, name=None, image_location=None,
-                       description=None, architecture=None,
-                       root_device_name=None, block_device_mapping=None,
-                       virtualization_type=None, kernel_id=None,
-                       ramdisk_id=None, sriov_net_support=None):
-        """Registers an AMI.
-
-        Args:
-            context (RequestContext): The request context.
-            name (str): A name for your AMI.
-                It's required by AWS but optional for legacy Nova EC2 API.
-            image_location (str): The full path to AMI manifest in S3 storage.
-            description (str): A description for your AMI.
-                Not used now.
-            architecture (str): The architecture of the AMI.
-                Not used now.
-            root_device_name (str): The name of the root device
-            block_device_mapping (list of dict): Dict can contain:
-                device_name (str): The device name exposed to the instance
-                    (for example, /dev/sdh or xvdh).
-                virtual_name (str): The virtual device name (ephemeral[0..3]).
-                ebs (dict): Dict can contain:
-                    volume_id (str): The ID of the volume (Nova extension).
-                    snapshot_id (str): The ID of the snapshot.
-                    volume_size (str): The size of the volume, in GiBs.
-                    volume_type (str): The volume type.
-                        Not used now.
-                    delete_on_termination (bool): Indicates whether to delete
-                        the volume on instance termination.
-                    iops (int): he number of IOPS to provision for the volume.
-                        Not used now.
-                    encrypted (boolean): Whether the volume is encrypted.
-                        Not used now.
-                no_device (str): Suppresses the device mapping.
-            virtualization_type (str): The type of virtualization.
-                Not used now.
-            kernel_id (str): The ID of the kernel.
-                Not used now.
-            ramdisk_id (str): The ID of the RAM disk.
-                Not used now.
-            sriov_net_support (str): SR-IOV mode for networking.
-                Not used now.
-
-        Returns:
-            The ID of the new AMI.
-        """
-
-    @module_and_param_types(image, 'amiariaki_id')
-    def deregister_image(self, context, image_id):
-        """Deregisters the specified AMI.
-
-        Args:
-            context (RequestContext): The request context.
-            image_id (str): The ID of the AMI.
-
-        Returns:
-            true if the request succeeds.
-        """
-
-    @metricPub.ReportLatency("describe_images-compute", listOfKeys = '{"1":["request_id"]}')
-    @module_and_param_types(image, 'amiariaki_ids')
-    def describe_images(self, context, image_id=None):
-        """Describes one or more of the images available to you.
-
-        Args:
-            context (RequestContext): The request context.
-            image_id (list of str): One or more image IDs.
-
-        Returns:
-            A list of images.
-        """
-
-    @module_and_param_types(image, 'amiariaki_id', 'str')
-    def describe_image_attribute(self, context, image_id, attribute):
-        """Describes the specified attribute of the specified AMI.
-
-        Args:
-            context (RequestContext): The request context.
-            image_id (str): The ID of the image.
-            attribute (str): The attribute of the network interface.
-                Valid values: description (unsupported now)| kernel | ramdisk |
-                    launchPermission | productCodes (unsupported now)|
-                    blockDeviceMapping | rootDeviceName (Nova EC2 extension)
-
-        Returns:
-            Specified attribute.
-        """
-        return image.describe_image_attribute(context, image_id, attribute)
-
-    @module_and_param_types(image, 'amiariaki_id', 'str',
-                            'strs', 'str',
-                            'str', 'dummy',
-                            'dummy', 'dummy', 'str')
-    def modify_image_attribute(self, context, image_id, attribute=None,
-                               user_group=None, operation_type=None,
-                               description=None, launch_permission=None,
-                               product_code=None, user_id=None, value=None):
-        """Modifies the specified attribute of the specified AMI.
-
-        Args:
-            context (RequestContext): The request context.
-            image_id (str): The ID of the image.
-            attribute (str): The name of the attribute to modify.
-            user_group (list of str): One or more user groups.
-                Only 'all' group is supported now.
-            operation_type (str): The operation type.
-                Only 'add' and 'remove' operation types are supported now.
-            description: A description for the AMI.
-            launch_permission: : A launch permission modification.
-            product_code: : Not supported now.
-            user_id: : Not supported now.
-            value: : The value of the attribute being modified.
-                This is only valid when modifying the description attribute.
-
-        Returns:
-            true if the request succeeds.
-        """
-
-    @module_and_param_types(image, 'amiariaki_id', 'str')
-    def reset_image_attribute(self, context, image_id, attribute):
-        """Resets an attribute of an AMI to its default value.
-
-        Args:
-            context (RequestContext): The request context.
-            image_id (str): The ID of the image.
-            attribute (str): The attribute to reset (currently you can only
-                reset the launch permission attribute).
-
-        Returns:
-            true if the request succeeds.
-        """
-
-    @module_and_param_types(tag, 'ec2_ids', 'key_value_dict_list')
-    def create_tags(self, context, resource_id, tag):
-        """Adds or overwrites one or more tags for the specified resources.
-
-        Args:
-            context (RequestContext): The request context.
-            resource_id (list of str): The IDs of one or more resources to tag.
-            tag (list of dict): Dict can contain:
-                key (str): The key of the tag.
-                value (str): The value of the tag.
-
-        Returns:
-            true if the request succeeds.
-        """
-
-    @module_and_param_types(tag, 'ec2_ids', 'dummy')
-    def delete_tags(self, context, resource_id, tag=None):
-        """Deletes the specified tags from the specified resources.
-
-        Args:
-            context (RequestContext): The request context.
-            resource_id (list of str): The IDs of one or more resources to tag.
-            tag (list of dict): One or more tags to delete.
-                Dict can contain:
-                key (str): The key of the tag.
-                value (str): The value of the tag.
-
-        Returns:
-            true if the request succeeds.
-
-        If you omit the value in tag parameter, we delete the tag regardless of
-        its value. If you specify this parameter with an empty string as the
-        value, we delete the key only if its value is an empty string.
-        """
-
-    @module_and_param_types(tag, 'filter', 'int',
-                            'str')
-    def describe_tags(self, context, filter=None, max_results=None,
-                      next_token=None):
-        """Describes one or more of the tags for your EC2 resources.
-
-        Args:
-            context (RequestContext): The request context.
-            filter (list of filter dict): You can specify filters so that the
-                response includes information for only certain tags.
-            max_results (int): The maximum number of items to return.
-                Not used now.
-            next_token (str): The token for the next set of items to return.
-                Not used now.
-
-        Returns:
-            A list of tags.
-        """
-
-
-class VpcCloudController(CloudController):
+"""
+LegacyCloudController has the APIs that we will not support in first phase
+of launch. We can enable them using the legacy_support flag
+"""
+class LegacyCloudController(CloudController):
 
     """VPC Cloud Controller
 
@@ -1753,3 +1187,577 @@ class VpcCloudController(CloudController):
         Returns:
             true if the request succeeds.
         """
+
+    @module_and_param_types(address, 'str255')
+    def allocate_address(self, context, domain=None):
+        """Acquires an Elastic IP address.
+
+        Args:
+            context (RequestContext): The request context.
+            domain (str): Set to vpc to allocate the address for use with
+                instances in a VPC.
+                Default: The address is for use in EC2-Classic.
+                Valid values: vpc
+
+        Returns:
+            The Elastic IP address information.
+
+        An Elastic IP address is for use either in the EC2-Classic platform
+        or in a VPC.
+        """
+
+    @module_and_param_types(address, 'ip', 'i_id',
+                            'eipalloc_id', 'eni_id',
+                            'ip', 'bool')
+    def associate_address(self, context, public_ip=None, instance_id=None,
+                          allocation_id=None, network_interface_id=None,
+                          private_ip_address=None, allow_reassociation=False):
+        """Associates an Elastic IP with an instance or a network interface.
+
+        Args:
+            context (RequestContext): The request context.
+            public_ip (str): The Elastic IP address.
+                Required for Elastic IP addresses for use with instances
+                in EC2-Classic.
+            instance_id (str): The ID of the instance.
+                The operation fails if you specify an instance ID unless
+                exactly one network interface is attached.
+                Required for EC2-Classic.
+            allocation_id (str): The allocation ID.
+                Required for EC2-VPC.
+            network_interface_id (str): The ID of the network interface.
+            private_ip_address (str): The primary or secondary private IP.
+            allow_reassociation (boolean): Allows an Elastic IP address that is
+                already associated to be re-associated.
+                Otherwise, the operation fails.
+
+        Returns:
+            true if the request succeeds.
+            [EC2-VPC] The ID that represents the association of the Elastic IP.
+
+        For a VPC, you can specify either instance_id or network_interface_id,
+        but not both.
+        If the instance has more than one network interface, you must specify
+        a network interface ID.
+        If no private IP address is specified, the Elastic IP address
+        is associated with the primary private IP address.
+        [EC2-Classic, default VPC] If the Elastic IP address is already
+        associated with a different instance, it is disassociated from that
+        instance and associated with the specified instance.
+        This is an idempotent operation.
+        """
+
+    @module_and_param_types(address, 'ip',
+                            'eipassoc_id')
+    def disassociate_address(self, context, public_ip=None,
+                             association_id=None):
+        """Disassociates an Elastic IP address.
+
+        Args:
+            context (RequestContext): The request context.
+            public_ip (str): The Elastic IP address.
+                Required for EC2-Classic.
+            assossiation_id (str): The association ID.
+                Required for EC2-VPC
+
+        Returns:
+            true if the request succeeds.
+
+        Disassociates an Elastic IP address from the instance or network
+        interface it's associated with.
+        This is an idempotent action.
+        """
+
+    @module_and_param_types(address, 'ip',
+                            'eipalloc_id')
+    def release_address(self, context, public_ip=None, allocation_id=None):
+        """Releases the specified Elastic IP address.
+
+        Args:
+            context (RequestContext): The request context.
+            public_ip (str): The Elastic IP address.
+            allocation_id (str): The allocation ID.
+
+        Returns:
+            true if the requests succeeds.
+
+        If you attempt to release an Elastic IP address that you already
+        released, you'll get an AuthFailure error if the address is already
+        allocated to another AWS account.
+        [EC2-Classic, default VPC] Releasing an Elastic IP address
+        automatically disassociates it from any instance that it's associated
+        with.
+        [Nondefault VPC] You must use DisassociateAddress to disassociate the
+        Elastic IP address before you try to release it.
+        """
+
+    @module_and_param_types(address, 'ips', 'eipalloc_ids',
+                            'filter')
+    def describe_addresses(self, context, public_ip=None, allocation_id=None,
+                           filter=None):
+        """Describes one or more of your Elastic IP addresses.
+
+        Args:
+            context (RequestContext): The request context.
+            public_ip (list of str): One or more Elastic IP addresses.
+            allocation_id (list of str): One or more allocation IDs.
+            filter (list of filter dict): You can specify filters so that the
+                response includes information for only certain Elastic IP
+                addresses.
+
+        Returns:
+            A list of Elastic IP addresses.
+        """
+
+    @module_and_param_types(security_group, 'security_group_strs',
+                            'sg_ids', 'filter')
+    def describe_security_groups(self, context, group_name=None,
+                                 group_id=None, filter=None):
+        """Describes one or more of your security groups.
+
+        Args:
+            context (RequestContext): The request context.
+            group_name (list of str): One or more security group names.
+            group_id (list of str): One or more security group IDs.
+            filter (list of filter dict): You can specify filters so that the
+                response includes information for only certain security groups.
+
+        Returns:
+            A list of security groups.
+        """
+
+    @module_and_param_types(security_group, 'security_group_str',
+                            'security_group_str', 'vpc_id')
+    def create_security_group(self, context, group_name,
+                              group_description, vpc_id=None):
+        """Creates a security group.
+
+        Args:
+            context (RequestContext): The request context.
+            group_name (str): The name of the security group.
+            group_description (str): A description for the security group.
+            vpc_id (str): [EC2-VPC] The ID of the VPC.
+
+        Returns:
+            true if the requests succeeds.
+            The ID of the security group.
+
+        You can have a security group for use in EC2-Classic with the same name
+        as a security group for use in a VPC. However, you can't have two
+        security groups for use in EC2-Classic with the same name or two
+        security groups for use in a VPC with the same name.
+        You have a default security group for use in EC2-Classic and a default
+        security group for use in your VPC. If you don't specify a security
+        group when you launch an instance, the instance is launched into the
+        appropriate default security group. A default security group includes
+        a default rule that grants instances unrestricted network access to
+        each other.
+        group_name and group_description restrictions:
+        up to 255 characters in length,
+        EC2-Classic: ASCII characters,
+        EC2-VPC: a-z, A-Z, 0-9, spaces, and ._-:/()#,@[]+=&;{}!$*
+        """
+
+    @module_and_param_types(security_group, 'security_group_str', 'sg_id')
+    def delete_security_group(self, context, group_name=None, group_id=None):
+        """Deletes a security group.
+
+        Args:
+            context (RequestContext): The request context.
+            group_name (str): The name of the security group.
+            group_id (str): The ID of the security group.
+
+        Returns:
+            true if the requests succeeds.
+
+        [EC2-Classic, default VPC] You can specify either GroupName or GroupId
+        If you attempt to delete a security group that is associated with an
+        instance, or is referenced by another security group, the operation
+        fails.
+        """
+
+    @module_and_param_types(security_group, 'sg_id',
+                            'security_group_str', 'dummy')
+    def authorize_security_group_ingress(self, context, group_id=None,
+                                         group_name=None, ip_permissions=None):
+        """Adds one or more ingress rules to a security group.
+
+        Args:
+            context (RequestContext): The request context.
+            group_id (str): The ID of the security group.
+            group_name (str): [EC2-Classic, default VPC] The name of the
+                security group.
+            ip_permissions (list of dicts): Dict can contain:
+                ip_protocol (str): The IP protocol name or number.
+                    Use -1 to specify all.
+                    For EC2-Classic, security groups can have rules only for
+                    TCP, UDP, and ICMP.
+                from_port (str): The start of port range for the TCP and UDP
+                    protocols, or an ICMP type number. For the ICMP type
+                    number, you can use -1 to specify all ICMP types.
+                to_port (str): The end of port range for the TCP and UDP
+                    protocols, or an ICMP code number. For the ICMP code
+                    number, you can use -1 to specify all ICMP codes for the
+                    ICMP type.
+                groups (list of dicts): Dict can contain:
+                    group_id (str): The ID of the source security group. You
+                        can't specify a source security group and a CIDR IP
+                        address range.
+                    user_id (str): [EC2-Classic] The ID of the AWS account that
+                        owns the source security group, if it's not the current
+                        AWS account.
+                    cidr_ip (str): The CIDR IP address range. You can't specify
+                    this parameter when specifying a source security group.
+
+        Returns:
+            true if the requests succeeds.
+        """
+
+    @module_and_param_types(security_group, 'sg_id',
+                            'security_group_str', 'dummy')
+    def revoke_security_group_ingress(self, context, group_id=None,
+                                      group_name=None, ip_permissions=None):
+        """Removes one or more ingress rules from a security group.
+
+        Args:
+            context (RequestContext): The request context.
+            group_id (str): The ID of the security group.
+            group_name (str): [EC2-Classic, default VPC] The name of the
+                security group.
+            ip_permissions (list of dicts): See
+                authorize_security_group_ingress
+
+        Returns:
+            true if the requests succeeds.
+
+        The values that you specify in the revoke request (for example, ports)
+        must match the existing rule's values for the rule to be removed.
+        """
+
+    @module_and_param_types(security_group, 'sg_id', 'dummy')
+    def authorize_security_group_egress(self, context, group_id,
+                                        ip_permissions=None):
+        """Adds one or more egress rules to a security group for use with a VPC.
+
+        Args:
+            context (RequestContext): The request context.
+            group_id (str): The ID of the security group.
+            ip_permissions (list of dicts): See
+                authorize_security_group_ingress
+
+        Returns:
+            true if the requests succeeds.
+
+        This action doesn't apply to security groups for use in EC2-Classic.
+        """
+
+    @module_and_param_types(security_group, 'sg_id', 'dummy')
+    def revoke_security_group_egress(self, context, group_id,
+                                     ip_permissions=None):
+        """Removes one or more egress rules from a security group for EC2-VPC.
+
+        Args:
+            context (RequestContext): The request context.
+            group_id (str): The ID of the security group.
+            ip_permissions (list of dicts): See
+                authorize_security_group_ingress
+
+        Returns:
+            true if the requests succeeds.
+
+        The values that you specify in the revoke request (for example, ports)
+        must match the existing rule's values for the rule to be revoked.
+        This action doesn't apply to security groups for use in EC2-Classic.
+        """
+
+    @module_and_param_types(instance, 'i_id', 'str255')
+    def describe_instance_attribute(self, context, instance_id, attribute):
+        """Describes the specified attribute of the specified instance.
+
+        Args:
+            context (RequestContext): The request context.
+            instance_id (str): The ID of the instance.
+            attribute (str): The instance attribute.
+                Valid values: blockDeviceMapping | disableApiTermination |
+                ebsOptimized (unsupported now) | groupSet |
+                instanceInitiatedShutdownBehavior | instanceType | kernel |
+                productCodes (unsupported now) | ramdisk | rootDeviceName |
+                sourceDestCheck (unsupported now) |
+                sriovNetSupport (unsupported now) | userData
+
+        Returns:
+            Specified attribute.
+        """
+
+    @module_and_param_types(availability_zone, 'strs', 'filter')
+    def describe_availability_zones(self, context, zone_name=None,
+                                    filter=None):
+        """Describes one or more of the available Availability Zones.
+
+        Args:
+            context (RequestContext): The request context.
+            zone_name (list of str): On or more zone names.
+            filter (list of filter dict): On or more filters.
+
+        Returns:
+            Specified availability zones.
+        """
+
+    @module_and_param_types(availability_zone, 'strs', 'filter')
+    def describe_regions(self, context, region_name=None, filter=None):
+        """Describes one or more regions that are currently available to you.
+
+        Args:
+            context (RequestContext): The request context.
+            region_name (list of str): On or more region names.
+            filter (list of filter dict): On or more filters.
+
+        Returns:
+            Specified regions.
+        """
+
+    @module_and_param_types(instance, 'i_id_or_ids')
+    def get_password_data(self, context, instance_id):
+        """Retrieves the encrypted administrator password for Windows instance.
+
+        Args:
+            context (RequestContext): The request context.
+            instance_id (str): ID of the Windows instance
+
+        Returns:
+            The password of the instance, timestamp and instance id.
+
+        The password is encrypted using the key pair that you specified when
+        you launched the instance.
+        """
+
+    @module_and_param_types(instance, 'i_id_or_ids')
+    def get_console_output(self, context, instance_id):
+        """Gets the console output for the specified instance.
+
+        Args:
+            context (RequestContext): The request context.
+            instance_id (str): ID of the instance
+
+        Returns:
+            The console output of the instance, timestamp and instance id.
+        """
+
+    @module_and_param_types(image, 'i_id', 'str', 'str',
+                            'bool', 'dummy')
+    def create_image(self, context, instance_id, name=None, description=None,
+                     no_reboot=False, block_device_mapping=None):
+        """Creates an EBS-backed AMI from an EBS-backed instance.
+
+        Args:
+            context (RequestContext): The request context.
+            instance_id (str): The ID of the instance.
+            name (str): A name for the new image.
+                It's required by AWS but optional for legacy Nova EC2 API.
+            description (str): A description for the new image.
+                Not used now.
+            no_reboot (boolean): When the parameter is set to false, EC2
+                attempts to shut down the instance cleanly before image
+                creation and then reboots the instance.
+            block_device_mapping (list of dict): Dict can contain:
+                device_name (str): The device name exposed to the instance
+                    (for example, /dev/sdh or xvdh).
+                virtual_name (str): The virtual device name (ephemeral[0..3]).
+                ebs (dict): Dict can contain:
+                    volume_id (str): The ID of the volume (Nova extension).
+                    snapshot_id (str): The ID of the snapshot.
+                    volume_size (str): The size of the volume, in GiBs.
+                    volume_type (str): The volume type.
+                        Not used now.
+                    delete_on_termination (bool): Indicates whether to delete
+                        the volume on instance termination.
+                    iops (int): he number of IOPS to provision for the volume.
+                        Not used now.
+                    encrypted (boolean): Whether the volume is encrypted.
+                        Not used now.
+                no_device (str): Suppresses the device mapping.
+
+        Returns:
+            The ID of the new AMI.
+        """
+        return image.create_image(context, instance_id, name, description,
+                                  no_reboot, block_device_mapping)
+
+    @module_and_param_types(image, 'str', 'str',
+                            'str', 'str',
+                            'str', 'dummy',
+                            'str', 'aki_id',
+                            'ari_id', 'str')
+    def register_image(self, context, name=None, image_location=None,
+                       description=None, architecture=None,
+                       root_device_name=None, block_device_mapping=None,
+                       virtualization_type=None, kernel_id=None,
+                       ramdisk_id=None, sriov_net_support=None):
+        """Registers an AMI.
+
+        Args:
+            context (RequestContext): The request context.
+            name (str): A name for your AMI.
+                It's required by AWS but optional for legacy Nova EC2 API.
+            image_location (str): The full path to AMI manifest in S3 storage.
+            description (str): A description for your AMI.
+                Not used now.
+            architecture (str): The architecture of the AMI.
+                Not used now.
+            root_device_name (str): The name of the root device
+            block_device_mapping (list of dict): Dict can contain:
+                device_name (str): The device name exposed to the instance
+                    (for example, /dev/sdh or xvdh).
+                virtual_name (str): The virtual device name (ephemeral[0..3]).
+                ebs (dict): Dict can contain:
+                    volume_id (str): The ID of the volume (Nova extension).
+                    snapshot_id (str): The ID of the snapshot.
+                    volume_size (str): The size of the volume, in GiBs.
+                    volume_type (str): The volume type.
+                        Not used now.
+                    delete_on_termination (bool): Indicates whether to delete
+                        the volume on instance termination.
+                    iops (int): he number of IOPS to provision for the volume.
+                        Not used now.
+                    encrypted (boolean): Whether the volume is encrypted.
+                        Not used now.
+                no_device (str): Suppresses the device mapping.
+            virtualization_type (str): The type of virtualization.
+                Not used now.
+            kernel_id (str): The ID of the kernel.
+                Not used now.
+            ramdisk_id (str): The ID of the RAM disk.
+                Not used now.
+            sriov_net_support (str): SR-IOV mode for networking.
+                Not used now.
+
+        Returns:
+            The ID of the new AMI.
+        """
+
+    @module_and_param_types(image, 'amiariaki_id')
+    def deregister_image(self, context, image_id):
+        """Deregisters the specified AMI.
+
+        Args:
+            context (RequestContext): The request context.
+            image_id (str): The ID of the AMI.
+
+        Returns:
+            true if the request succeeds.
+        """
+
+    @module_and_param_types(image, 'amiariaki_id', 'str')
+    def describe_image_attribute(self, context, image_id, attribute):
+        """Describes the specified attribute of the specified AMI.
+
+        Args:
+            context (RequestContext): The request context.
+            image_id (str): The ID of the image.
+            attribute (str): The attribute of the network interface.
+                Valid values: description (unsupported now)| kernel | ramdisk |
+                    launchPermission | productCodes (unsupported now)|
+                    blockDeviceMapping | rootDeviceName (Nova EC2 extension)
+
+        Returns:
+            Specified attribute.
+        """
+        return image.describe_image_attribute(context, image_id, attribute)
+
+    @module_and_param_types(image, 'amiariaki_id', 'str',
+                            'strs', 'str',
+                            'str', 'dummy',
+                            'dummy', 'dummy', 'str')
+    def modify_image_attribute(self, context, image_id, attribute=None,
+                               user_group=None, operation_type=None,
+                               description=None, launch_permission=None,
+                               product_code=None, user_id=None, value=None):
+        """Modifies the specified attribute of the specified AMI.
+
+        Args:
+            context (RequestContext): The request context.
+            image_id (str): The ID of the image.
+            attribute (str): The name of the attribute to modify.
+            user_group (list of str): One or more user groups.
+                Only 'all' group is supported now.
+            operation_type (str): The operation type.
+                Only 'add' and 'remove' operation types are supported now.
+            description: A description for the AMI.
+            launch_permission: : A launch permission modification.
+            product_code: : Not supported now.
+            user_id: : Not supported now.
+            value: : The value of the attribute being modified.
+                This is only valid when modifying the description attribute.
+
+        Returns:
+            true if the request succeeds.
+        """
+
+    @module_and_param_types(image, 'amiariaki_id', 'str')
+    def reset_image_attribute(self, context, image_id, attribute):
+        """Resets an attribute of an AMI to its default value.
+
+        Args:
+            context (RequestContext): The request context.
+            image_id (str): The ID of the image.
+            attribute (str): The attribute to reset (currently you can only
+                reset the launch permission attribute).
+
+        Returns:
+            true if the request succeeds.
+        """
+
+    @module_and_param_types(tag, 'ec2_ids', 'key_value_dict_list')
+    def create_tags(self, context, resource_id, tag):
+        """Adds or overwrites one or more tags for the specified resources.
+
+        Args:
+            context (RequestContext): The request context.
+            resource_id (list of str): The IDs of one or more resources to tag.
+            tag (list of dict): Dict can contain:
+                key (str): The key of the tag.
+                value (str): The value of the tag.
+
+        Returns:
+            true if the request succeeds.
+        """
+
+    @module_and_param_types(tag, 'ec2_ids', 'dummy')
+    def delete_tags(self, context, resource_id, tag=None):
+        """Deletes the specified tags from the specified resources.
+
+        Args:
+            context (RequestContext): The request context.
+            resource_id (list of str): The IDs of one or more resources to tag.
+            tag (list of dict): One or more tags to delete.
+                Dict can contain:
+                key (str): The key of the tag.
+                value (str): The value of the tag.
+
+        Returns:
+            true if the request succeeds.
+
+        If you omit the value in tag parameter, we delete the tag regardless of
+        its value. If you specify this parameter with an empty string as the
+        value, we delete the key only if its value is an empty string.
+        """
+
+    @module_and_param_types(tag, 'filter', 'int',
+                            'str')
+    def describe_tags(self, context, filter=None, max_results=None,
+                      next_token=None):
+        """Describes one or more of the tags for your EC2 resources.
+
+        Args:
+            context (RequestContext): The request context.
+            filter (list of filter dict): You can specify filters so that the
+                response includes information for only certain tags.
+            max_results (int): The maximum number of items to return.
+                Not used now.
+            next_token (str): The token for the next set of items to return.
+                Not used now.
+
+        Returns:
+            A list of tags.
+        """
+    
