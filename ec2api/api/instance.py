@@ -356,7 +356,6 @@ class InstanceDescriber(common.TaggableItemsDescriber):
     def get_os_items(self):
         self.os_volumes = _get_os_volumes(self.context)
         self.os_flavors = _get_os_flavors(self.context)
-#        nova = clients.nova(ec2_context.get_os_admin_context())
         nova = clients.nova(self.context)
         if self.ids == 1 and len(self.items) == 1:
             try:
@@ -524,7 +523,7 @@ def get_console_output(context, instance_id):
 
 def describe_instance_attribute(context, instance_id, attribute):
     instance = ec2utils.get_db_item(context, instance_id)
-    nova = clients.nova(ec2_context.get_os_admin_context())
+    nova = clients.nova(context)
     os_instance = nova.servers.get(instance['os_id'])
 
     def _format_attr_block_device_mapping(result):
@@ -1000,7 +999,7 @@ def _get_os_volumes(context):
 
 
 def _is_ebs_instance(context, os_instance_id):
-    nova = clients.nova(ec2_context.get_os_admin_context())
+    nova = clients.nova(context)
     os_instance = nova.servers.get(os_instance_id)
     root_device_name = getattr(os_instance,
                                'OS-EXT-SRV-ATTR:root_device_name', None)
@@ -1331,7 +1330,7 @@ instance_engine = get_instance_engine()
 
 def _auto_create_instance_extension(context, instance, os_instance=None):
     if not os_instance:
-        nova = clients.nova(ec2_context.get_os_admin_context())
+        nova = clients.nova(context)
         os_instance = nova.servers.get(instance['os_id'])
     if hasattr(os_instance, 'OS-EXT-SRV-ATTR:reservation_id'):
         instance['reservation_id'] = getattr(os_instance,
