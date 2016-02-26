@@ -79,7 +79,7 @@ ec2_opts = [
 CONF = cfg.CONF
 CONF.register_opts(ec2_opts)
 CONF.import_opt('use_forwarded_for', 'ec2api.api.auth')
-metricLog = metricLogger("jcs-api", CONF.monitoring_config)
+metric_logger = metricLogger("jcs-api", CONF.monitoring_config)
 
 if CONF.enable_policy_engine:
     import policy_engine
@@ -113,12 +113,17 @@ class RequestLogging(wsgi.Middleware):
     @webob.dec.wsgify(RequestClass=wsgi.Request)
     def __call__(self, req):
         start = timeutils.utcnow()
-        metricLog.startTime()
+        metric_logger.startTime()
         rv = req.get_response(self.application)
-        request_id = req.environ.get("ec2api.context").request_id
-        appendRequestDict = {'requestid' : request_id}
+        appendRequestDict = {}
+        try:
+            request_id = req.environ.get("ec2api.context").request_id
+            appendRequestDict.update({'request_id' : request_id})
+        except:
+            pass
+        appendRequestDict.update({"status": getattr(rv, "_status")})
         actionName = ec2utils.camelcase_to_underscore(req.params.get('Action'))
-        metricLog.reportTime(actionName, addOnInfoPairs = appendRequestDict)
+        metric_logger.reportTime(actionName, addOnInfoPairs = appendRequestDict)
         self.log_request_completion(rv, req, start)
         return rv
 
@@ -219,7 +224,7 @@ class EC2KeystoneAuth(wsgi.Middleware):
 
     @webob.dec.wsgify(RequestClass=wsgi.Request)
     def __call__(self, req):
-        metricLog.startTime()
+        metric_logger.startTime()
         request_id = context.generate_request_id()
 
         # NOTE(alevine) We need to calculate the hash here because
@@ -348,7 +353,7 @@ class EC2KeystoneAuth(wsgi.Middleware):
         appendRequestDict = {'requestid' : compute_request_id}
         actionName = ec2utils.camelcase_to_underscore(req.params.get('Action'))
         actionName = actionName + "-auth";
-        metricLog.reportTime(actionName, addOnInfoPairs = appendRequestDict)
+        metric_logger.reportTime(actionName, addOnInfoPairs = appendRequestDict)
         return self.application
 
 
@@ -383,14 +388,14 @@ class Requestify(wsgi.Middleware):
         res=str(response.text)
         if action =="DescribeVolumes" and response.status_code==200:
             res = utils.change_os_id_to_ec2_id(context,response.text,"instanceID")
-            
+
         status_code = response.status_code
         resp = webob.Response()
         resp.status = status_code
         resp.headers['Content-Type'] = 'text/xml'
         resp.body = res
         return resp
- 
+
     @webob.dec.wsgify(RequestClass=wsgi.Request)
     def __call__(self, req):
         non_args = ['Action', 'Signature', 'JCSAccessKeyId', 'SignatureMethod',
@@ -415,10 +420,20 @@ class Requestify(wsgi.Middleware):
                     args.pop('SignatureMethod')
             for non_arg in non_args:
                 args.pop(non_arg, None)
+            success_flag = True
         except KeyError:
+            success_flag = False
             raise webob.exc.HTTPBadRequest()
         except exception.InvalidRequest as err:
+            success_flag = False
             raise webob.exc.HTTPBadRequest(explanation=unicode(err))
+        finally:
+            if not success_flag:
+                context = req.environ['ec2api.context']
+                metric_dict = {"request_id": getattr(context, "request_id"),
+                               "failure" : "KeyError"}
+                actionName = ec2utils.camelcase_to_underscore(req.params.get('Action'))
+                metric_logger.logFailure(actionName, addOnInfoPairs = metric_dict)
 
         LOG.debug('action: %s', action)
         for key, value in args.items():
@@ -525,6 +540,10 @@ class Executor(wsgi.Application):
         try:
             result = api_request.invoke(context)
         except Exception as ex:
+            metric_dict = {"request_id": getattr(context, "request_id"),
+                           "failure" : "KeyError"}
+            actionName = ec2utils.camelcase_to_underscore(req.params.get('Action'))
+            metric_logger.logFailure(actionName, addOnInfoPairs = metric_dict)
             return ec2_error_ex(
                 ex, req, unexpected=not isinstance(ex, exception.EC2Exception))
         else:
