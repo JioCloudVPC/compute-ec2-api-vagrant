@@ -117,7 +117,8 @@ def delete_key_pair(context, key_name):
         nova.keypairs.delete(key_name)
     except nova_exception.NotFound:
         # aws returns true even if the key doesn't exist
-        pass
+        # AK - but we are not aws
+        raise exception.InvalidKeypairNotFound(id=key_name)
     return True
 
 

@@ -283,7 +283,9 @@ class InvalidIPAddressInUse(EC2InUseException):
 
 class InvalidKeyPairDuplicate(EC2DuplicateException):
     ec2_code = 'InvalidKeyPair.Duplicate'
-    msg_fmt = _("Key pair '%(key_name)s' already exists.")
+    msg_fmt = _("The specified KeyPair '%(key_name)s' already exists. "
+                "Please provide an alternate KeyPair name or delete "
+                "the existing KeyPair if its obsolete.")
 
 
 class InvalidPermissionDuplicate(EC2DuplicateException):
