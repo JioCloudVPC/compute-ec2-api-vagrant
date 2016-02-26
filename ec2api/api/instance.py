@@ -256,7 +256,7 @@ class InstanceDescriber(common.TaggableItemsDescriber):
         'ip-address': 'ipAddress',
         'kernel-id': 'kernelId',
         'key-name': 'keyName',
-        'launch-index': 'amiLaunchIndex',
+        'launch-index': 'launchIndex',
         'launch-time': 'launchTime',
         'private-dns-name': 'privateDnsName',
         'private-ip-address': 'privateIpAddress',
@@ -460,7 +460,9 @@ def describe_instance_types(context, instance_type_id=None):
         entry['id'] = os_flavors.name
         entry['ram'] = os_flavors.ram
         entry['vcpus'] = os_flavors.vcpus
-        entry['disk'] = os_flavors.disk
+        # [varun] There is no significance of disk for now as it is applicable
+        # to ephemeral storage. Commenting it out for now.
+        # entry['disk'] = os_flavors.disk
         formatted_flavors.append(entry)
     return {'instanceTypes': formatted_flavors}
 
@@ -468,7 +470,7 @@ def describe_instance_types(context, instance_type_id=None):
 def describe_instances(context, instance_id=None, filter=None):
     formatted_reservations = ReservationDescriber().describe(
             context, ids=instance_id, filter=filter)
-    return {'reservationSet': formatted_reservations}
+    return {'instancesSet': formatted_reservations}
 
 
 def reboot_instances(context, instance_id):
@@ -584,20 +586,21 @@ def describe_instance_attribute(context, instance_id, attribute):
 def _format_reservation(context, reservation, formatted_instances, os_groups):
     # Commenting out this group set because it is related to classic instances
 
-    return {
-        'ownerId': reservation['owner_id'],
-        'instancesSet': sorted(formatted_instances,
-                               key=lambda i: i['amiLaunchIndex'])
+    #return {
+        # 'ownerId': reservation['owner_id'],
+   #     'instancesSet': sorted(formatted_instances,
+   #                            key=lambda i: i['launchIndex'])
         # 'groupSet': (_format_group_set(context, os_groups)
         #             if os_groups is not None else [])
-    }
+    #}
+    return sorted(formatted_instances, key=lambda i: i['launchIndex'])
 
 
 def _format_instance(context, instance, os_instance, ec2_network_interfaces,
                      image_ids, volumes=None, os_volumes=None,
                      os_flavors=None):
     ec2_instance = {
-        'amiLaunchIndex': instance['launch_index'],
+        'launchIndex': instance['launch_index'],
         'imageId': (ec2utils.os_id_to_ec2_id(context, 'ami',
                                              os_instance.image['id'],
                                              ids_by_os_id=image_ids)
@@ -636,8 +639,8 @@ def _format_instance(context, instance, os_instance, ec2_network_interfaces,
         dns_name = floating_ip
         # TODO(ft): euca2ools require groupId for an instance security group.
         # But ec2-api doesn't store IDs for EC2 Classic groups.
-        # ec2_instance['groupSet'] = _format_group_set(
-        #         context, os_instance.security_groups)
+        ec2_instance['groupSet'] = _format_group_set(
+                context, os_instance.security_groups)
     else:
         primary_ec2_network_interface = None
         for ec2_network_interface in ec2_network_interfaces:
@@ -656,20 +659,21 @@ def _format_instance(context, instance, os_instance, ec2_network_interfaces,
                 association.pop('allocationId', None)
             if ec2_network_interface['attachment']['deviceIndex'] == 0:
                 primary_ec2_network_interface = ec2_network_interface
-        ec2_instance.update({'vpcId': ec2_network_interface['vpcId'],
-                             'networkInterfaceSet': ec2_network_interfaces})
+        # ec2_instance.update({'vpcId': ec2_network_interface['vpcId'],
+        #                     'networkInterfaceSet': ec2_network_interfaces})
+        ec2_instance.update({'vpcId': ec2_network_interface['vpcId']})
         fixed_ip = floating_ip = dns_name = None
         if primary_ec2_network_interface:
-            # ec2_instance.update({
-            #    'subnetId': primary_ec2_network_interface['subnetId'],
-            #    'groupSet': primary_ec2_network_interface['groupSet']})
+            ec2_instance.update({
+               'subnetId': primary_ec2_network_interface['subnetId'],
+               'groupSet': primary_ec2_network_interface['groupSet']})
             fixed_ip = primary_ec2_network_interface['privateIpAddress']
             if 'association' in primary_ec2_network_interface:
                 association = primary_ec2_network_interface['association']
                 floating_ip = association['publicIp']
                 dns_name = association['publicDnsName']
     ec2_instance.update({
-        # 'privateIpAddress': fixed_ip,
+        'privateIpAddress': fixed_ip,
         'privateDnsName': (fixed_ip if CONF.ec2_private_dns_show_ip else
                            getattr(os_instance, 'OS-EXT-SRV-ATTR:hostname',
                                    None)),
@@ -1447,6 +1451,8 @@ def _cloud_format_instance_bdm(context, os_instance, result,
         device_name = os_attachment.get('device')
         if not device_name:
             continue
+        else:
+            bdm_entry['deviceName'] = device_name
         if (device_name == root_device_name or
                 device_name == root_device_short_name):
             root_device_type = 'ebs'
