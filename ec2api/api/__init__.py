@@ -401,6 +401,7 @@ class Requestify(wsgi.Middleware):
         non_args = ['Action', 'Signature', 'JCSAccessKeyId', 'SignatureMethod',
                     'SignatureVersion', 'Version', 'Timestamp']
         args = dict(req.params)
+        success_flag = True
         try:
             expired = ec2utils.is_ec2_timestamp_expired(
                 req.params,
@@ -420,7 +421,6 @@ class Requestify(wsgi.Middleware):
                     args.pop('SignatureMethod')
             for non_arg in non_args:
                 args.pop(non_arg, None)
-            success_flag = True
         except KeyError:
             success_flag = False
             raise webob.exc.HTTPBadRequest()
