@@ -196,14 +196,15 @@ def run_instances(context, image_id, instance_count=1,
                 context, cleaner, launch_context, instance['id'])
 
     ec2_reservations = describe_instances(context, instance_ids)
-    reservation_count = len(ec2_reservations['reservationSet'])
-    if reservation_count != 1:
-        LOG.error(_LE('describe_instances has returned %s reservations, '
-                      'but 1 is expected.') % reservation_count)
-        LOG.error(_LE('Requested instances IDs: %s') % instance_ids)
-        LOG.error(_LE('Result: %s') % ec2_reservations)
-    return (ec2_reservations['reservationSet'][0]
-            if reservation_count else None)
+    # reservation_count = len(ec2_reservations['reservationSet'])
+    # if reservation_count != 1:
+    #     LOG.error(_LE('describe_instances has returned %s reservations, '
+    #                   'but 1 is expected.') % reservation_count)
+    #     LOG.error(_LE('Requested instances IDs: %s') % instance_ids)
+    #     LOG.error(_LE('Result: %s') % ec2_reservations)
+    # return (ec2_reservations['reservationSet'][0]
+    #         if reservation_count else None)
+    return ec2_reservations
 
 
 def terminate_instances(context, instance_id):
