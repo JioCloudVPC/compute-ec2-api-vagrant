@@ -437,6 +437,11 @@ class ReservationDescriber(common.NonOpenstackItemsDescriber):
         return super(ReservationDescriber, self).describe(
                 context, filter=reservation_filters)
 
+def _convert_ram_from_mb_to_gb(value):
+    if value is not None:
+        return float(value)/1024
+    else:
+        return value
 
 def describe_instance_types(context, instance_type_id=None):
     flavors = _get_os_flavors(context)
@@ -459,7 +464,7 @@ def describe_instance_types(context, instance_type_id=None):
         entry = dict()
         #entry['name'] = os_flavors.name
         entry['id'] = os_flavors.name
-        entry['ram'] = os_flavors.ram
+        entry['ram'] = _convert_ram_from_mb_to_gb(os_flavors.ram)
         entry['vcpus'] = os_flavors.vcpus
         # [varun] There is no significance of disk for now as it is applicable
         # to ephemeral storage. Commenting it out for now.
