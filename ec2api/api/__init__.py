@@ -184,18 +184,25 @@ class EC2KeystoneAuth(wsgi.Middleware):
         - params['X-Amz-Signature'] == version 4
         - header 'Authorization' == version 4
         """
-        sig = req.params.get('Signature') or req.params.get('X-Amz-Signature')
-        if sig is not None:
-            return sig
+        sig = req.params.get('Signature')
+        return sig
 
-        if 'Authorization' not in req.headers:
-            return None
+        # [varun JCC 140] JCS authentication module only supports Signature
+        # The following code will never be executed and we are keeping
+        # it till the next release only.
 
-        auth_str = req.headers['Authorization']
-        if not auth_str.startswith('AWS4-HMAC-SHA256'):
-            return None
+        # sig = req.params.get('Signature') or req.params.get('X-Amz-Signature')
+        # if sig is not None:
+        #     return sig
 
-        return auth_str.partition("Signature=")[2].split(',')[0]
+        # if 'Authorization' not in req.headers:
+        #     return None
+
+        # auth_str = req.headers['Authorization']
+        # if not auth_str.startswith('AWS4-HMAC-SHA256'):
+        #     return None
+
+        # return auth_str.partition("Signature=")[2].split(',')[0]
 
     def _get_access(self, req):
         """Extract the access key identifier.
@@ -205,22 +212,29 @@ class EC2KeystoneAuth(wsgi.Middleware):
         field in the 'Authorization' header string.
         """
         access = req.params.get('JCSAccessKeyId')
-        if access is not None:
-            return access
+        return access
 
-        cred_param = req.params.get('X-Amz-Credential')
-        if cred_param:
-            access = cred_param.split("/")[0]
-            if access is not None:
-                return access
+        # [varun JCC 140]
+        # JCS authentication module only supports JCSAccessKeyId
+        # The following code will never be executed and we are keeping
+        # it till the next release only.
 
-        if 'Authorization' not in req.headers:
-            return None
-        auth_str = req.headers['Authorization']
-        if not auth_str.startswith('AWS4-HMAC-SHA256'):
-            return None
-        cred_str = auth_str.partition("Credential=")[2].split(',')[0]
-        return cred_str.split("/")[0]
+        # if access is not None:
+        #     return access
+
+        # cred_param = req.params.get('X-Amz-Credential')
+        # if cred_param:
+        #     access = cred_param.split("/")[0]
+        #     if access is not None:
+        #         return access
+
+        # if 'Authorization' not in req.headers:
+        #     return None
+        # auth_str = req.headers['Authorization']
+        # if not auth_str.startswith('AWS4-HMAC-SHA256'):
+        #     return None
+        # cred_str = auth_str.partition("Credential=")[2].split(',')[0]
+        # return cred_str.split("/")[0]
 
     @webob.dec.wsgify(RequestClass=wsgi.Request)
     def __call__(self, req):
