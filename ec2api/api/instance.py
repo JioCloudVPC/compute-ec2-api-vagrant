@@ -610,8 +610,9 @@ def _format_instance(context, instance, os_instance, ec2_network_interfaces,
 #        'placement': {
 #            'availabilityZone': getattr(os_instance,
 #                                        'OS-EXT-AZ:availability_zone')},
-        'instanceState': _cloud_state_description(
-                                getattr(os_instance, 'OS-EXT-STS:vm_state')),
+#        'instanceState': _cloud_state_description(
+#                                getattr(os_instance, 'OS-EXT-STS:vm_state')),
+         'instanceState': _cloud_state_find(os_instance),
     }
     root_device_name = getattr(os_instance,
                                'OS-EXT-SRV-ATTR:root_device_name', None)
@@ -1390,10 +1391,35 @@ def _cloud_format_ramdisk_id(context, os_instance, image_ids=None):
     return ec2utils.os_id_to_ec2_id(context, 'ari', os_ramdisk_id,
                                     ids_by_os_id=image_ids)
 
+def _cloud_state_find(os_instance):
+    vm_state=getattr(os_instance, 'OS-EXT-STS:vm_state')
+    task_state=getattr(os_instance,'OS-EXT-STS:task_state')
+    try: 
+        old_task_state=getattr(os_instance,'old_task_state')
+    except AttributeError:
+        LOG.warning("Unable to find attribute old_task_state in instance \
+                   info from NOVA")
+        old_task_state=None
+
+    if task_state is not None:
+        name = _TASK_STATE_TO_EC2_STATE.get(task_state)
+    elif vm_state !="error":
+        if vm_state==inst_state_STOPPED and  \
+           old_task_state==inst_task_state_powering_on:
+            name = _TASK_STATE_TO_EC2_STATE.get(old_task_state)
+        else:
+            name = _STATE_DESCRIPTION_MAP.get(vm_state, vm_state)
+    elif old_task_state is not None:
+        name = _TASK_STATE_TO_EC2_STATE.get(old_task_state)
+    else:
+        name = _STATE_DESCRIPTION_MAP.get(vm_state,vm_state)
+             
+    return {'code': inst_state_name_to_code(name),
+            'name': name}
+
 
 def _cloud_format_instance_type(context, os_instance):
     return clients.nova(context).flavors.get(os_instance.flavor['id']).name
-
 
 def _cloud_state_description(vm_state):
     """Map the vm state to the server status string."""
@@ -1560,6 +1586,24 @@ inst_state_RESIZE = 'resize'
 inst_state_PAUSE = 'pause'
 inst_state_SUSPEND = 'suspend'
 inst_state_RESCUE = 'rescue'
+
+inst_task_state_scheduling = 'scheduling'
+inst_task_state_networking = 'networking'
+inst_task_state_bdm = 'block_device_mapping'
+inst_task_state_spawning = 'spawning'
+inst_task_state_powering_off = 'powering-off'
+inst_task_state_powering_on = 'powering-on'
+inst_task_state_deleting = 'deleting'
+
+_TASK_STATE_TO_EC2_STATE = {
+    inst_task_state_scheduling: inst_state_PENDING,
+    inst_task_state_networking: inst_state_PENDING,
+    inst_task_state_bdm: inst_state_PENDING,
+    inst_task_state_spawning: inst_state_PENDING,
+    inst_task_state_powering_off: inst_state_STOPPING,
+    inst_task_state_powering_on: inst_state_PENDING,
+    inst_task_state_deleting: inst_state_SHUTTING_DOWN,
+}
 
 # EC2 API instance status code
 _NAME_TO_CODE = {
