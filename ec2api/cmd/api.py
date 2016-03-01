@@ -24,7 +24,14 @@ from oslo_log import log as logging
 from ec2api import config
 from ec2api import service
 
+main_opts = [ 
+    cfg.IntOpt('ec2_workers',
+               default=1,
+               help='Number of workers for EC2 API service. The value '
+                    'will come from conf.'),
+]
 CONF = cfg.CONF
+CONF.register_opts(main_opts)
 
 
 def main():
@@ -32,7 +39,7 @@ def main():
     logging.setup(CONF, 'ec2api')
 
     server = service.WSGIService('ec2api', max_url_len=16384)
-    service.serve(server)
+    service.serve(server, CONF.ec2_workers)
     service.wait()
 
 

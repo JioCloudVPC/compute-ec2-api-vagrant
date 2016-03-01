@@ -476,7 +476,11 @@ def describe_instance_types(context, instance_type_id=None):
 def describe_instances(context, instance_id=None, filter=None):
     formatted_reservations = ReservationDescriber().describe(
             context, ids=instance_id, filter=filter)
-    return {'instancesSet': formatted_reservations}
+    instances = []
+    for reservation in formatted_reservations:
+        for instance in reservation:
+            instances.append(instance)
+    return {'instancesSet': instances}
 
 
 def reboot_instances(context, instance_id):
@@ -599,14 +603,14 @@ def _format_reservation(context, reservation, formatted_instances, os_groups):
         # 'groupSet': (_format_group_set(context, os_groups)
         #             if os_groups is not None else [])
     #}
-    return sorted(formatted_instances, key=lambda i: i['launchIndex'])
+    return sorted(formatted_instances, key=lambda i: i['launchTime'])
 
 
 def _format_instance(context, instance, os_instance, ec2_network_interfaces,
                      image_ids, volumes=None, os_volumes=None,
                      os_flavors=None):
     ec2_instance = {
-        'launchIndex': instance['launch_index'],
+        #'launchIndex': instance['launch_index'],
         'imageId': (ec2utils.os_id_to_ec2_id(context, 'ami',
                                              os_instance.image['id'],
                                              ids_by_os_id=image_ids)
