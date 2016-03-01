@@ -34,6 +34,13 @@ from ec2api.i18n import _
 CONF = cfg.CONF
 LOG = logging.getLogger(__name__)
 
+ec2_opts = [
+    cfg.StrOpt('default_response_service_header',
+           default='https://compute.ind-west-1.jiocloudservices.com',
+           help='This response service header will go in all the API responses')
+]
+
+CONF.register_opts(ec2_opts)
 
 def _underscore_to_camelcase(st):
     return ''.join([x[:1].upper() + x[1:] for x in st.split('_')])
@@ -98,7 +105,7 @@ class APIRequest(object):
 
         response_el = xml.createElement(self.action + 'Response')
         response_el.setAttribute('xmlns',
-                                 'http://ec2.amazonaws.com/doc/%s/'
+                                 CONF.default_response_service_header + '/doc/%s/'
                                  % self.version)
         request_id_el = xml.createElement('requestId')
         request_id_el.appendChild(xml.createTextNode(request_id))
