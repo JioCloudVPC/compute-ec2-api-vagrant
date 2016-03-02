@@ -1438,9 +1438,7 @@ def _cloud_state_find(os_instance):
     else:
         name = _STATE_DESCRIPTION_MAP.get(vm_state,vm_state)
              
-    return {'code': inst_state_name_to_code(name),
-            'name': name}
-
+    return name
 
 def _cloud_format_instance_type(context, os_instance):
     return clients.nova(context).flavors.get(os_instance.flavor['id']).name
