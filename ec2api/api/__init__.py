@@ -401,7 +401,7 @@ class Requestify(wsgi.Middleware):
                                     params=params, headers=headers)
         res=str(response.text)
         if action =="DescribeVolumes" and response.status_code==200:
-            res = utils.change_os_id_to_ec2_id(context,response.text,"instanceID")
+            res = utils.change_os_id_to_ec2_id(context,response.text,"instanceId",'i')
 
         status_code = response.status_code
         resp = webob.Response()

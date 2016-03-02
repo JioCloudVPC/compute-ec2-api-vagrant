@@ -98,8 +98,6 @@ def delete_item(context, item_id):
 def restore_item(context, kind, data):
     return IMPL.restore_item(context, kind, data)
 
-def get_item_by_os_id(context,os_id):
-    return IMPL.get_item_by_os_id(context,os_id)
 
 def get_items(context, kind):
     return IMPL.get_items(context, kind)

@@ -27,7 +27,7 @@ from oslo_config import cfg
 from oslo_log import log as logging
 
 from ec2api.i18n import _
-from ec2api.db import api as db_api
+from ec2api.api import ec2utils
 try:
     import xml.etree.cElementTree as xml_tree
 except ImportError:
@@ -123,7 +123,7 @@ def utf8(value):
     assert isinstance(value, str)
     return value
 
-def change_os_id_to_ec2_id(context,text,object_name):
+def change_os_id_to_ec2_id(context,text,object_name,kind):
     try:
         root=xml_tree.fromstring(text)
     except xml_tree.ParseError:
@@ -137,13 +137,15 @@ def change_os_id_to_ec2_id(context,text,object_name):
     # the namespace and CONF.sbs_name_space should be exactly similar.
     # or else this will fail. This code was written assuming they will be same.
     for elem in root.iter(ns+object_name):
-        elem_text=elem.text
-        split_id=elem_text.split(ns)
-        os_instance_id=split_id[0]
-        item=db_api.get_item_by_os_id(context,os_instance_id)
-        if item is None or not isInstance(item,dict):
+        elem_text = elem.text
+        split_id = elem_text.split(ns)
+        os_instance_id = split_id[0]
+        instance_ec2_id = ec2utils.os_id_to_ec2_id(
+                       context,kind,os_instance_id,
+                      project_id=context.project_id)
+
+        if instance_ec2_id is None:
             continue
-        instance_ec2_id=item.get("id")
         elem.text=str(instance_ec2_id)
     text=xml_tree.tostring(root)
     return text
