@@ -222,7 +222,7 @@ def terminate_instances(context, instance_id):
             os_instance = None
         else:
             os_instance.delete()
-        state_change = _format_state_change(instance, prev_state)
+        state_change = _format_state_change(instance, prev_state,inst_task_state_deleting)
         state_changes.append(state_change)
 
     # NOTE(ft): don't delete items from DB until they disappear from OS.
@@ -488,7 +488,7 @@ def reboot_instances(context, instance_id):
                              (vm_states_ALLOW_SOFT_REBOOT +
                               vm_states_ALLOW_HARD_REBOOT),
                              lambda instance: instance.reboot(),
-                             vm_states_ACTIVE)
+                             inst_task_state_rebooting)
 
 
 def stop_instances(context, instance_id, force=False):
@@ -496,13 +496,13 @@ def stop_instances(context, instance_id, force=False):
                              [vm_states_ACTIVE, vm_states_RESCUED,
                               vm_states_ERROR],
                              lambda instance: instance.stop(),
-                             vm_states_STOPPED)
+                             inst_task_state_powering_off)
 
 
 def start_instances(context, instance_id):
     return _foreach_instance(context, instance_id, [vm_states_STOPPED],
                              lambda instance: instance.start(),
-                             vm_states_ACTIVE)
+                             inst_task_state_powering_on)
 
 
 def get_password_data(context, instance_id):
@@ -702,20 +702,6 @@ def _format_instance(context, instance, os_instance, ec2_network_interfaces,
             os_instance.tenant_id,
             getattr(os_instance, 'OS-EXT-SRV-ATTR:host'))
     return ec2_instance
-
-
-def _format_state_change(instance, prev_state=None, current_state=None):
-    # Changing this function to receive the current and previous state
-    # parameters
-    if prev_state is None:
-        prev_state = vm_states_WIPED_OUT
-    if current_state is None:
-        current_state = vm_states_WIPED_OUT
-    return {
-        'instanceId': instance['id'],
-        'previousState': _cloud_state_description(prev_state),
-        'currentState': _cloud_state_description(current_state)
-    }
 
 
 def _remove_instances(context, instances):
@@ -959,7 +945,7 @@ def _get_ip_info_for_instance(os_instance):
 
 
 def _foreach_instance(context, instance_ids, valid_states, func,
-                      final_state=None):
+                      final_task_state=None):
     instances = ec2utils.get_db_items(context, 'i', instance_ids)
     os_instances = _get_os_instances_by_instances(context, instances,
                                                   exactly=True)
@@ -973,9 +959,18 @@ def _foreach_instance(context, instance_ids, valid_states, func,
         prev_state = getattr(os_instance, 'OS-EXT-STS:vm_state')
         func(os_instance)
         state_change = _format_state_change(ec2_instance, prev_state,
-                                            final_state)
+                                            final_task_state)
         state_changes.append(state_change)
     return {"instancesSet": state_changes}
+
+def _format_state_change(instance, prev_state,final_task_state):
+    if prev_state is None:
+        prev_state = vm_states_WIPED_OUT
+    return {
+        'instanceId': instance['id'],
+        'previousState': _cloud_state_description(prev_state),
+        'currentState': _TASK_STATE_TO_EC2_STATE.get(final_task_state)
+    }
 
 
 def _get_os_instances_by_instances(context, instances, exactly=False,
@@ -1606,6 +1601,7 @@ inst_state_SHUTTING_DOWN = 'shutting-down'
 inst_state_TERMINATED = 'terminated'
 inst_state_STOPPING = 'stopping'
 inst_state_STOPPED = 'stopped'
+inst_state_REBOOTING = 'rebooting'
 
 # non-ec2 value
 inst_state_MIGRATE = 'migrate'
@@ -1621,6 +1617,9 @@ inst_task_state_spawning = 'spawning'
 inst_task_state_powering_off = 'powering-off'
 inst_task_state_powering_on = 'powering-on'
 inst_task_state_deleting = 'deleting'
+inst_task_state_rebooting = 'rebooting'
+inst_task_state_rebooting_pending = 'reboot_pending'
+inst_task_state_rebooting_started = 'reboot_started'
 
 _TASK_STATE_TO_EC2_STATE = {
     inst_task_state_scheduling: inst_state_PENDING,
@@ -1630,6 +1629,9 @@ _TASK_STATE_TO_EC2_STATE = {
     inst_task_state_powering_off: inst_state_STOPPING,
     inst_task_state_powering_on: inst_state_PENDING,
     inst_task_state_deleting: inst_state_SHUTTING_DOWN,
+    inst_task_state_rebooting: inst_state_REBOOTING,
+    inst_task_state_rebooting_started: inst_state_REBOOTING,
+    inst_task_state_rebooting_pending: inst_state_REBOOTING,
 }
 
 # EC2 API instance status code
