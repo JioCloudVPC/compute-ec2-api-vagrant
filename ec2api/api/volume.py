@@ -52,6 +52,17 @@ def create_volume(context, availability_zone=None, size=None,
 
     return _format_volume(context, os_volume, snapshot_id=snapshot_id)
 
+def format_delete_on_termination_response(response,context):
+    if 'instance' in response._info:
+        instance_ec2_id=ec2utils.os_id_to_ec2_id(context,'i',
+                                  response._info['instance'],
+                                project_id=context.project_id)
+        response._info.pop('instance')
+        response._info['instanceId']=instance_ec2_id
+    if 'id' in response._info:
+        volume_id=response._info.pop('id')
+        response._info['volumeId']=volume_id
+
 
 def show_delete_on_termination_flag(context, volume_id):
     #volume = ec2utils.get_db_item(context, volume_id)
@@ -62,6 +73,8 @@ def show_delete_on_termination_flag(context, volume_id):
     nova = clients.nova(context)
     try:
         response = nova.volumes.show_delete_on_termination_flag(volume_id)
+        format_delete_on_termination_response(response,context)
+
         return {"volume": response._info}
     except (nova_exception.Conflict, nova_exception.BadRequest):
         # TODO(anant): raise correct errors for different cases
@@ -79,6 +92,8 @@ def update_delete_on_termination_flag(context, volume_id,
     try:
         response = nova.volumes.update_delete_on_termination_flag(volume_id,
                                                  str(delete_on_termination))
+        format_delete_on_termination_response(response,context)
+
         return {"volume": response._info}
     except (nova_exception.Conflict, nova_exception.BadRequest):
         # TODO(anant): raise correct errors for different cases
