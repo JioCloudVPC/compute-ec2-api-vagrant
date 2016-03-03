@@ -34,6 +34,7 @@ from ec2api.db import api as db_api
 from ec2api import exception
 from ec2api.i18n import _, _LE
 from ec2api.api import subnet as subnet_api
+from ec2api.api import volume as ec2api_volume
 
 LOG = logging.getLogger(__name__)
 
@@ -1511,11 +1512,15 @@ def _cloud_format_instance_bdm(context, os_instance, result,
         # TODO(yamahata): volume attach time
         bdm_entry['volumeId'] = os_volume.id
         bdm_entry['status'] = _cloud_get_volume_attach_status(os_volume)
+        bdm_entry['deleteOnTermination'] = 'False'
+        del_on_term = ec2api_volume.show_delete_on_termination_flag(context,
+                                                               os_volume.id)
+        del_on_term = del_on_term.get('volume')
+        if del_on_term:
+            if del_on_term.get('delete_on_termination', False) == True:
+                bdm_entry['deleteOnTermination'] = 'True'
         volume_attached = next((va for va in volumes_attached
                                 if va['id'] == os_volume.id), None)
-        if volume_attached and 'delete_on_termination' in volume_attached:
-            bdm_entry['deleteOnTermination'] = (
-                volume_attached['delete_on_termination'])
         mapping.append(bdm_entry)
 
     if mapping:
