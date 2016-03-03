@@ -435,3 +435,8 @@ class SecurityGroupLimitExceeded(EC2OverlimitException):
 class RulesPerSecurityGroupLimitExceeded(EC2OverlimitException):
     msg_fmt = _("You've reached the limit on the number of rules that "
                 "you can add to a security group.")
+
+
+class DefaultSubnetIDNotFound(EC2NotFoundException):
+    ec2_code = 'DefaultSubnetID.NotFound'
+    msg_fmt = _("The default subnet does not exist")

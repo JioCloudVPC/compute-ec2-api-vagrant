@@ -33,6 +33,7 @@ from ec2api import context as ec2_context
 from ec2api.db import api as db_api
 from ec2api import exception
 from ec2api.i18n import _, _LE
+from ec2api.api import subnet as subnet_api
 
 LOG = logging.getLogger(__name__)
 
@@ -139,6 +140,17 @@ def run_instances(context, image_id, instance_count=1,
     availability_zone = (placement or {}).get('availability_zone')
     if user_data:
         user_data = base64.b64decode(user_data)
+
+    # Adding default subnet information here. If user does not supply one.
+    # By default any random subnet id will be chosen from the list
+    # Currently there is no way for compute team to find the default subnet
+    # https://jira.ril.com/browse/JCC-144
+    if not subnet_id:
+        try:
+            subnet_data = subnet_api.describe_subnets(context)
+            subnet_id = subnet_data['subnetSet'][0]['subnetId']
+        except:
+            raise exception.DefaultSubnetIDNotFound()
 
     vpc_id, launch_context = instance_engine.get_vpc_and_build_launch_context(
         context, security_group,
