@@ -37,7 +37,7 @@ CONF = cfg.CONF
 CONF.register_opts(ec2_opts)
 
 _c2u = re.compile('(((?<=[a-z])[A-Z])|([A-Z](?![A-Z]|$)))')
-
+_device_name_pattern = re.compile("\/dev\/vd[b-z]")
 
 def camelcase_to_underscore(str):
     return _c2u.sub(r'_\1', str).lower().strip('_')
@@ -343,3 +343,21 @@ def get_os_public_network(context):
             LOG.error(msg)
         raise exception.Unsupported(_('Feature is restricted by OS admin'))
     return os_networks[0]
+
+
+# This method will either pass quietly or raise exception.
+def validate_device_name(deviceName):
+    # Rules for device names
+    # 1. Root device names will never be controlled by customer
+    # 2. Secondary allowed device names are /dev/vdb to /dev/vdz
+    # 3. Anything else is invalid secondary device name
+    VALID_LENGTH_DEVICE = 8
+
+    if deviceName == None or len(deviceName) != VALID_LENGTH_DEVICE:
+        raise exception.InvalidBlockDeviceName(device_name = deviceName)
+
+    # Start doing required operations if anything fails return False
+    if _device_name_pattern.match(deviceName):
+        return
+
+    raise exception.InvalidBlockDeviceName(device_name = deviceName)

@@ -102,6 +102,7 @@ def update_delete_on_termination_flag(context, volume_id,
 
 def attach_volume(context, volume_id, instance_id, device):
     #volume = ec2utils.get_db_item(context, volume_id)
+    ec2utils.validate_device_name(str(device).lower())
     instance = ec2utils.get_db_item(context, instance_id)
 
     nova = clients.nova(context)
