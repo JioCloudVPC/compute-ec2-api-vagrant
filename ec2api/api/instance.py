@@ -179,6 +179,11 @@ def run_instances(context, image_id, instance_count=1,
             extra_params = (
                 instance_engine.get_launch_extra_parameters(
                     context, cleaner, launch_context))
+            fixed_ip = extra_params['fixed_ip']
+            extra_params.pop('fixed_ip')
+            fixed_ip = fixed_ip.replace('.', '-') 
+            user_data = "#cloud-config\nhostname: ip-" + fixed_ip + '\n' 
+            user_data += 'manage_etc_hosts: true'
 
             os_instance = nova.servers.create(
                 '%s-%s' % (ec2_reservation_id, launch_index),
@@ -1087,10 +1092,12 @@ class InstanceEngineNeutron(object):
         else:
             network_data = launch_context['network_data']
             self.create_network_interfaces(context, cleaner, network_data)
+            fixed_ip = network_data[0]['network_interface']['private_ip_address']
             nics = [{'port-id': data['network_interface']['os_id']}
                     for data in network_data]
         return {'security_groups': launch_context['security_groups'],
-                'nics': nics}
+                'nics': nics,
+                'fixed_ip': fixed_ip}
 
     def post_launch_action(self, context, cleaner, launch_context,
                            instance_id):
