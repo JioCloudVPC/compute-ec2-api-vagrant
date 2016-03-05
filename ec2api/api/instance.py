@@ -52,7 +52,7 @@ CONF = cfg.CONF
 CONF.register_opts(ec2_opts)
 
 DEFAULT_BLOCK_VOLUME_SIZE = 8
-DEFAULT_ROOT_DEVICE_NAME = "/dev/sda1"
+DEFAULT_ROOT_DEVICE_NAME = "/dev/vda"
 
 """Instance related API implementation
 """
@@ -798,8 +798,18 @@ def _is_this_root_volume(context, item, root_device, root_snapshot_id):
 
         # This block device mapping is for root device/volume
         result = True
-    return result
 
+    # User is trying to use a snapshot id that is reserved for an image
+    # But this is not the root volume. The snapshot IDs for the images
+    # is just a metadata for now. So this is an error condition for us.
+    if item.has_key("snapshot_id") and \
+       item["snapshot_id"] == root_snapshot_id and \
+       item.has_key("device_name") and \
+       item["device_name"] != root_device:
+            msg = ('Invalid usage of reserved snapshot with non root device')
+            raise exception.InvalidParameterValue(msg)
+
+    return result
 
 def _process_block_device_mapping_entry(context, item,
                                         root_device,
@@ -840,8 +850,11 @@ def _process_block_device_mapping_entry(context, item,
         else:
             result["source_type"] = "blank"
 
+        # For secondary volume only assign this if valid device name
         if item.has_key("device_name"):
-            result["device_name"] = item["device_name"]
+            device = str(item["device_name"]).lower()
+            ec2utils.validate_device_name(device)
+            result["device_name"] = device
 
         result["boot_index"] = "-1"
     return root_device_found, result
@@ -867,10 +880,12 @@ def _create_root_bdm_from_image(context, os_image):
         if os_image.properties != None and os_image.properties.has_key("root_device"):
             root_bdm["device_name"] = str(os_image.properties["root_device"])
 
-    # Fix for https://jira.ril.com/browse/JCC-109
-    # Root BDM was not mounting
-    if root_bdm.has_key("device_name"):
-        root_bdm.pop("device_name")
+    # JCC-164 trumps JCC 109
+    # We will pass the root device name all the way to the hypervisor
+    # This is safe operation as user does not get to device or set this
+    # parameter ever
+    # if root_bdm.has_key("device_name"):
+    #    root_bdm.pop("device_name")
 
     return root_bdm
 
@@ -901,6 +916,7 @@ def _parse_block_device_mapping_v2(context, block_device_mapping,
             root_snapshot_id = os_image.properties["snapshot_id"]
 
     bdm_has_root_device = False
+    unique_device_names = []
     # Now we are ready to process block device mapping enteries
     for item in block_device_mapping:
         is_root_dev, result = _process_block_device_mapping_entry(context,
@@ -909,14 +925,21 @@ def _parse_block_device_mapping_v2(context, block_device_mapping,
                                                                  root_snapshot_id,
                                                                  os_image)
 
-        # Fix for https://jira.ril.com/browse/JCC-109
-        # BDM was not mounting
-        if result.has_key("device_name"):
-            result.pop("device_name")
+        # JCC-164 trumps JCC 109
+        # We will pass the root device name all the way to the hypervisor
+        # if result.has_key("device_name"):
+        #    result.pop("device_name")
 
         bdm_list.append(result)
         if is_root_dev:
             bdm_has_root_device = True
+
+        if "device_name" in result:
+            if result["device_name"] not in unique_device_names:
+                unique_device_names.append(result["device_name"])
+            else:
+                msg = ('Duplicate device names not allowed')
+                raise exception.InvalidParameterValue(msg)
 
     if bdm_has_root_device == False:
         bdm = _create_root_bdm_from_image(context, os_image)

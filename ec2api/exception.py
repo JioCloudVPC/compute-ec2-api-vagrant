@@ -440,3 +440,8 @@ class RulesPerSecurityGroupLimitExceeded(EC2OverlimitException):
 class DefaultSubnetIDNotFound(EC2NotFoundException):
     ec2_code = 'DefaultSubnetID.NotFound'
     msg_fmt = _("The default subnet does not exist")
+
+class InvalidBlockDeviceName(EC2InvalidException):
+    msg_fmt = _("Error attaching volume: Value %(device_name)s for parameter "
+                "device is invalid. %(device_name)s is not a valid SBS "
+                "device name.")
