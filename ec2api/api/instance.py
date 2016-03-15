@@ -182,12 +182,12 @@ def run_instances(context, image_id, instance_count=1,
                     context, cleaner, launch_context))
             fixed_ip = extra_params['fixed_ip']
             extra_params.pop('fixed_ip')
-            fixed_ip = fixed_ip.replace('.', '-') 
-            user_data = "#cloud-config\nhostname: ip-" + fixed_ip + '\n' 
+            fixed_ip = fixed_ip.replace('.', '-')
+            user_data = '#cloud-config\n' 
             user_data += 'manage_etc_hosts: true'
 
             os_instance = nova.servers.create(
-                '%s-%s' % (ec2_reservation_id, launch_index),
+                'ip-%s' % (fixed_ip),
                 os_image.id, os_flavor,
                 min_count=1, max_count=1,
                 kernel_id=os_kernel_id, ramdisk_id=os_ramdisk_id,
