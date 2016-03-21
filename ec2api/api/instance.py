@@ -237,7 +237,7 @@ def terminate_instances(context, instance_id):
             os_instance = nova.servers.get(instance['os_id'])
             prev_state = getattr(os_instance, 'OS-EXT-STS:vm_state')
         except nova_exception.NotFound:
-            os_instance = None
+            raise exception.InvalidInstanceIDNotFound(id=instance.get('id'))
         else:
             os_instance.delete()
         state_change = _format_state_change(instance, prev_state,inst_task_state_deleting)
