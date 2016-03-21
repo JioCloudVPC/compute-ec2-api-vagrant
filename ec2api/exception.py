@@ -410,6 +410,10 @@ class ResourceLimitExceeded(EC2OverlimitException):
     msg_fmt = _('You have reached the limit of %(resource)s')
 
 
+class ResourceNotLeft(EC2OverlimitException):
+    msg_fmt = _('You can create a maximum of %(number)s %(resource)s.')
+
+
 class VpcLimitExceeded(EC2OverlimitException):
     msg_fmt = _('The maximum number of VPCs has been reached.')
 

@@ -106,7 +106,7 @@ def run_instances(context, image_id, instance_count=1,
     ramdisk_id=None
     network_interface=None
 
-    _check_instance_count(instance_count)
+    _check_instance_count(context, instance_count)
 
     if client_token:
         reservations = describe_instances(context,
@@ -742,15 +742,22 @@ def _remove_instances(context, instances):
                                                                eni['id'])
         db_api.delete_item(context, instance_id)
 
-def _check_instance_count(instance_count):
+def _check_instance_count(context, instance_count):
     instance_count = int(instance_count)
-    # TODO: figure out appropriate aws message and use them
-    # This method is not checking if instance count is more
-    # than the quota. We need to make sure that it is happen-
-    # -ing somewhere.
     if instance_count < 1:
         msg = _('Instance count must be greater than zero')
         raise exception.InvalidParameterValue(msg)
+    nova = clients.nova(context)
+    account_limits = nova.quotas.limits(context.project_id)
+    account_limits = account_limits.absolute
+    instances_used = account_limits.get('totalInstancesUsed')
+    max_instances = account_limits.get('maxTotalInstances')
+    # Handle the case when max_instances is < 0, the case
+    # for infinite values, i.e, no limit
+    if max_instances >= 0:
+        if instances_used + instance_count > max_instances:
+            raise exception.ResourceNotLeft(number=max_instances,
+                                            resource='instances')
 
 # TODO: Remove this method once requirements are finalized
 # def _check_min_max_count(min_count, max_count):
