@@ -397,6 +397,22 @@ class CloudController(object):
             Information about the detachment.
         """
 
+    @metric_publisher.ReportLatency("get_password_data-compute", listOfKeys = '{"1":["request_id"]}')
+    @module_and_param_types(instance, 'i_id')
+    def get_password_data(self, context, instance_id):
+        """Retrieves the encrypted administrator password for Windows instance.
+
+        Args:
+            context (RequestContext): The request context.
+            instance_id (str): ID of the Windows instance
+
+        Returns:
+            The password of the instance, timestamp and instance id.
+
+        The password is encrypted using the key pair that you specified when
+        you launched the instance.
+        """
+
 """
 LegacyCloudController has the APIs that we will not support in first phase
 of launch. We can enable them using the legacy_support flag
@@ -1392,21 +1408,6 @@ class LegacyCloudController(CloudController):
 
         Returns:
             Specified regions.
-        """
-
-    @module_and_param_types(instance, 'i_id_or_ids')
-    def get_password_data(self, context, instance_id):
-        """Retrieves the encrypted administrator password for Windows instance.
-
-        Args:
-            context (RequestContext): The request context.
-            instance_id (str): ID of the Windows instance
-
-        Returns:
-            The password of the instance, timestamp and instance id.
-
-        The password is encrypted using the key pair that you specified when
-        you launched the instance.
         """
 
     @module_and_param_types(instance, 'i_id_or_ids')
