@@ -18,6 +18,7 @@ import copy
 import itertools
 import random
 import re
+import sys
 
 from novaclient import exceptions as nova_exception
 from oslo_config import cfg
@@ -1004,7 +1005,16 @@ def _foreach_instance(context, instance_ids, valid_states, func,
     state_changes = []
     for os_instance, ec2_instance in zip(os_instances, instances):
         prev_state = getattr(os_instance, 'OS-EXT-STS:vm_state')
-        func(os_instance)
+        try:
+            func(os_instance)
+        except Exception as e:
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            LOG.exception(str(e))
+            if isinstance(exc_obj, nova_exception.Conflict):
+                raise exception.IncorrectInstanceState(
+                    instance_id=ec2_instance['id'])
+            else:
+                raise e
         state_change = _format_state_change(ec2_instance, prev_state,
                                             final_task_state)
         state_changes.append(state_change)
