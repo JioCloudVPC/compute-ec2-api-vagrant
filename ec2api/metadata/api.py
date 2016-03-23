@@ -39,9 +39,9 @@ VERSIONS = [
 ]
 
 VERSION_DATA = {
-    '1.0': ['ami-id',
-            'ami-launch-index',
-            'ami-manifest-path',
+    '1.0': ['jmi-id',
+            'jmi-launch-index',
+            'jmi-manifest-path',
             'hostname',
             'instance-id',
             'local-ipv4',
@@ -53,7 +53,7 @@ VERSION_DATA = {
                    'public-ipv4'],
     '2007-03-01': ['product-codes'],
     '2007-08-29': ['instance-type'],
-    '2007-10-10': ['ancestor-ami-ids',
+    '2007-10-10': ['ancestor-jmi-ids',
                    'ramdisk-id'],
     '2007-12-15': ['block-device-mapping'],
     '2008-02-01': ['kernel-id',
@@ -134,12 +134,12 @@ def _get_ec2_instance_and_reservation(context, os_instance_id):
 def _build_metadata(context, ec2_instance, ec2_reservation,
                     os_instance_id, remote_ip):
     metadata = {
-        'ami-id': ec2_instance['imageId'],
-        'ami-launch-index': ec2_instance['amiLaunchIndex'],
+        'jmi-id': ec2_instance['imageId'],
+        'jmi-launch-index': ec2_instance['jmiLaunchIndex'],
         # NOTE (ft): the fake value as it is in Nova EC2 metadata
-        'ami-manifest-path': 'FIXME',
+        'jmi-manifest-path': 'FIXME',
         # NOTE (ft): empty value as it is in Nova EC2 metadata
-        'ancestor-ami-ids': [],
+        'ancestor-jmi-ids': [],
         'block-device-mapping': _build_block_device_mappings(context,
                                                              ec2_instance,
                                                              os_instance_id),
@@ -197,7 +197,7 @@ def _build_metadata(context, ec2_instance, ec2_reservation,
 
 def _build_block_device_mappings(context, ec2_instance, os_instance_id):
     mappings = {'root': ec2_instance.get('rootDeviceName', ''),
-                'ami': instance_api._block_device_strip_dev(
+                'jmi': instance_api._block_device_strip_dev(
                             ec2_instance.get('rootDeviceName', ''))}
     if 'blockDeviceMapping' in ec2_instance:
         # NOTE(yamahata): I'm not sure how ebs device should be numbered.

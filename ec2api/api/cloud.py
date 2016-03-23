@@ -101,7 +101,7 @@ class CloudController(object):
         return 'CloudController'
 
     @metric_publisher.ReportLatency("run_instances-compute", listOfKeys = '{"1":["request_id"]}')
-    @module_and_param_types(instance, 'ami_id', 'int',
+    @module_and_param_types(instance, 'jmi_id', 'int',
                             'str255', 'sg_ids',
                             'str', 'dummy',
                             'subnet_id', 'ip')
@@ -348,7 +348,7 @@ class CloudController(object):
         """
 
     @metric_publisher.ReportLatency("describe_images-compute", listOfKeys = '{"1":["request_id"]}')
-    @module_and_param_types(image, 'amiariaki_ids')
+    @module_and_param_types(image, 'jmijrijki_ids')
     def describe_images(self, context, image_id=None):
         """Describes one or more of the images available to you.
 
@@ -1514,7 +1514,7 @@ class LegacyCloudController(CloudController):
             The ID of the new AMI.
         """
 
-    @module_and_param_types(image, 'amiariaki_id')
+    @module_and_param_types(image, 'jmijrijki_id')
     def deregister_image(self, context, image_id):
         """Deregisters the specified AMI.
 
@@ -1526,7 +1526,7 @@ class LegacyCloudController(CloudController):
             true if the request succeeds.
         """
 
-    @module_and_param_types(image, 'amiariaki_id', 'str')
+    @module_and_param_types(image, 'jmijrijki_id', 'str')
     def describe_image_attribute(self, context, image_id, attribute):
         """Describes the specified attribute of the specified AMI.
 
@@ -1543,7 +1543,7 @@ class LegacyCloudController(CloudController):
         """
         return image.describe_image_attribute(context, image_id, attribute)
 
-    @module_and_param_types(image, 'amiariaki_id', 'str',
+    @module_and_param_types(image, 'jmijrijki_id', 'str',
                             'strs', 'str',
                             'str', 'dummy',
                             'dummy', 'dummy', 'str')
@@ -1572,7 +1572,7 @@ class LegacyCloudController(CloudController):
             true if the request succeeds.
         """
 
-    @module_and_param_types(image, 'amiariaki_id', 'str')
+    @module_and_param_types(image, 'jmijrijki_id', 'str')
     def reset_image_attribute(self, context, image_id, attribute):
         """Resets an attribute of an AMI to its default value.
 

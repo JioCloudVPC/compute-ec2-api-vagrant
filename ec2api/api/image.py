@@ -84,16 +84,16 @@ DEFAULT_BLOCK_VOLUME_SIZE = 8
 Validator = common.Validator
 
 
-CONTAINER_TO_KIND = {'aki': 'aki',
-                     'ari': 'ari',
-                     'ami': 'ami',
+CONTAINER_TO_KIND = {'jki': 'jki',
+                     'jri': 'jri',
+                     'jmi': 'jmi',
                      # NOTE(ft): this mappings are ported from legacy Nova EC2
                      # There is no idea about its actuality
-                     'kernel': 'aki',
-                     'ramdisk': 'ari'}
-IMAGE_TYPES = {'aki': 'kernel',
-               'ari': 'ramdisk',
-               'ami': 'machine'}
+                     'kernel': 'jki',
+                     'ramdisk': 'jri'}
+IMAGE_TYPES = {'jki': 'kernel',
+               'jri': 'ramdisk',
+               'jmi': 'machine'}
 
 
 # TODO(yamahata): race condition
@@ -234,7 +234,7 @@ def deregister_image(context, image_id):
 
 class ImageDescriber(common.TaggableItemsDescriber):
 
-    KIND = 'ami'
+    KIND = 'jmi'
     # We are not supporting any filters for initial release
     FILTER_MAP = {'architecture': 'architecture',
                   'block-device-mapping.device-name': ['blockDeviceMapping',
@@ -268,16 +268,16 @@ class ImageDescriber(common.TaggableItemsDescriber):
             local_images = db_api.get_items_by_ids(self.context, self.ids)
         else:
             local_images = sum((db_api.get_items(self.context, kind)
-                                for kind in ('ami', 'ari', 'aki')), [])
+                                for kind in ('jmi', 'jri', 'jki')), [])
         public_images = sum((db_api.get_public_items(self.context, kind,
                                                      self.ids)
-                             for kind in ('ami', 'ari', 'aki')), [])
+                             for kind in ('jmi', 'jri', 'jki')), [])
 
         mapped_ids = []
         if self.ids:
             mapped_ids = [{'id': item_id,
                            'os_id': os_id}
-                          for kind in ('ami', 'ari', 'aki')
+                          for kind in ('jmi', 'jri', 'jki')
                           for item_id, os_id in db_api.get_items_ids(
                               self.context, kind, item_ids=self.ids)]
 
@@ -331,7 +331,7 @@ class ImageDescriber(common.TaggableItemsDescriber):
             db_api.delete_item(self.context, image['id'])
 
     def get_tags(self):
-        return db_api.get_tags(self.context, ('ami', 'ari', 'aki'), self.ids)
+        return db_api.get_tags(self.context, ('jmi', 'jri', 'jki'), self.ids)
 
 
 def describe_images(context, image_id=None):
@@ -357,14 +357,14 @@ def describe_image_attribute(context, image_id, attribute):
         kernel_id = os_image.properties.get('kernel_id')
         if kernel_id:
             result['kernel'] = {
-                'value': ec2utils.os_id_to_ec2_id(context, 'aki', kernel_id)
+                'value': ec2utils.os_id_to_ec2_id(context, 'jki', kernel_id)
             }
 
     def _ramdisk_attribute(os_image, image, result):
         ramdisk_id = os_image.properties.get('ramdisk_id')
         if ramdisk_id:
             result['ramdisk'] = {
-                'value': ec2utils.os_id_to_ec2_id(context, 'ari', ramdisk_id)
+                'value': ec2utils.os_id_to_ec2_id(context, 'jri', ramdisk_id)
             }
 
     # NOTE(ft): Openstack extension, AWS-incompability
@@ -513,12 +513,12 @@ def _format_image(context, image, os_image, images_dict, ids_dict,
     kernel_id = os_image.properties.get('kernel_id')
     if kernel_id:
         ec2_image['kernelId'] = ec2utils.os_id_to_ec2_id(
-                context, 'aki', kernel_id,
+                context, 'jki', kernel_id,
                 items_by_os_id=images_dict, ids_by_os_id=ids_dict)
     ramdisk_id = os_image.properties.get('ramdisk_id')
     if ramdisk_id:
         ec2_image['ramdiskId'] = ec2utils.os_id_to_ec2_id(
-                context, 'ari', ramdisk_id,
+                context, 'jri', ramdisk_id,
                 items_by_os_id=images_dict, ids_by_os_id=ids_dict)
 
     name = os_image.name
@@ -604,7 +604,7 @@ def _prepare_mappings(os_image):
 
 
 def _get_os_image_kind(os_image):
-    return CONTAINER_TO_KIND.get(os_image.container_format, 'ami')
+    return CONTAINER_TO_KIND.get(os_image.container_format, 'jmi')
 
 
 def _auto_create_image_extension(context, image, os_image):
@@ -612,11 +612,11 @@ def _auto_create_image_extension(context, image, os_image):
 
 
 ec2utils.register_auto_create_db_item_extension(
-        'ami', _auto_create_image_extension)
+        'jmi', _auto_create_image_extension)
 ec2utils.register_auto_create_db_item_extension(
-        'ari', _auto_create_image_extension)
+        'jri', _auto_create_image_extension)
 ec2utils.register_auto_create_db_item_extension(
-        'aki', _auto_create_image_extension)
+        'jki', _auto_create_image_extension)
 
 
 # NOTE(ft): following functions are copied from various parts of Nova
@@ -829,11 +829,11 @@ def _s3_parse_manifest(context, manifest):
         os_image = ec2utils.get_os_image(context, image_id)
         properties[image_key] = os_image.id
 
-    image_format = 'ami'
+    image_format = 'jmi'
     if set_dependent_image_id('kernel_id'):
-        image_format = 'aki'
+        image_format = 'jki'
     if set_dependent_image_id('ramdisk_id'):
-        image_format = 'ari'
+        image_format = 'jri'
 
     metadata = {'disk_format': image_format,
                 'container_format': image_format,

@@ -28,9 +28,9 @@ Validator = common.Validator
 
 RESOURCE_TYPES = {
     'dopt': 'dhcp-options',
-    'ami': 'image',
-    'aki': 'image',
-    'ari': 'image',
+    'jmi': 'image',
+    'jki': 'image',
+    'jri': 'image',
     'i': 'instance',
     'igw': 'internet-gateway',
     'eni': 'network-interface',
@@ -68,7 +68,7 @@ def create_tags(context, resource_id, tag):
             raise exception.InvalidID(id=item_id)
         # NOTE(ft): check items exist (excluding images because AWS allows to
         # create a tag with any image id)
-        if kind not in ('ami', 'ari', 'aki'):
+        if kind not in ('jmi', 'jri', 'jki'):
             ec2utils.get_db_item(context, item_id)
 
     tags = [dict(item_id=item_id,

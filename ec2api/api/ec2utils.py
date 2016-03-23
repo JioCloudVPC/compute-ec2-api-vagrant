@@ -186,9 +186,9 @@ NOT_FOUND_EXCEPTION_MAP = {
     'az': exception.InvalidAvailabilityZoneNotFound,
     'vol': exception.InvalidVolumeNotFound,
     'snap': exception.InvalidSnapshotNotFound,
-    'ami': exception.InvalidAMIIDNotFound,
-    'aki': exception.InvalidAMIIDNotFound,
-    'ari': exception.InvalidAMIIDNotFound,
+    'jmi': exception.InvalidJMIIDNotFound,
+    'jki': exception.InvalidJMIIDNotFound,
+    'jri': exception.InvalidJMIIDNotFound,
 }
 
 

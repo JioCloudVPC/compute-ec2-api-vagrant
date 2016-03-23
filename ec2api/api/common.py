@@ -164,20 +164,20 @@ class Validator(object):
     def i_ids(self, ids):
         self.multi(ids, self.i_id)
 
-    def ami_id(self, id):
-        self.ec2_id(id, ['ami'])
+    def jmi_id(self, id):
+        self.ec2_id(id, ['jmi'])
 
-    def aki_id(self, id):
-        self.ec2_id(id, ['aki'])
+    def jki_id(self, id):
+        self.ec2_id(id, ['jki'])
 
-    def ari_id(self, id):
-        self.ec2_id(id, ['ari'])
+    def jri_id(self, id):
+        self.ec2_id(id, ['jri'])
 
-    def amiariaki_id(self, id):
-        self.ec2_id(id, ['ami', 'ari', 'aki'])
+    def jmijrijki_id(self, id):
+        self.ec2_id(id, ['jmi', 'jri', 'jki'])
 
-    def amiariaki_ids(self, ids):
-        self.multi(ids, self.amiariaki_id)
+    def jmijrijki_ids(self, ids):
+        self.multi(ids, self.jmijrijki_id)
 
     def sg_id(self, id):
         self.ec2_id(id, ['sg'])

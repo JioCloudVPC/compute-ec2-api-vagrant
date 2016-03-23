@@ -265,8 +265,8 @@ class IncorrectInstanceState(EC2IncorrectStateException):
                 "the requested operation can be performed.")
 
 
-class InvalidAMIIDUnavailable(EC2IncorrectStateException):
-    ec2_code = 'InvalidAMIID.Unavailable'
+class InvalidJMIIDUnavailable(EC2IncorrectStateException):
+    ec2_code = 'InvalidJMIID.Unavailable'
     # TODO(ft): Change the message with the real AWS message
     msg_fmt = _("Image %(image_id)s is not active.")
 
@@ -381,8 +381,8 @@ class InvalidRouteNotFound(EC2NotFoundException):
                 '%(destination_cidr_block)s in route table %(route_table_id)s')
 
 
-class InvalidAMIIDNotFound(EC2NotFoundException):
-    ec2_code = 'InvalidAMIID.NotFound'
+class InvalidJMIIDNotFound(EC2NotFoundException):
+    ec2_code = 'InvalidJMIID.NotFound'
     msg_fmt = _("The image id '[%(id)s]' does not exist")
 
 

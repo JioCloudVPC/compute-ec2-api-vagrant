@@ -368,8 +368,8 @@ class InstanceDescriber(common.TaggableItemsDescriber):
                         for v in db_api.get_items(self.context, 'vol')}
         self.image_ids = {i['os_id']: i['id']
                           for i in itertools.chain(
-                              db_api.get_items(self.context, 'ami'),
-                              db_api.get_public_items(self.context, 'ami'))}
+                              db_api.get_items(self.context, 'jmi'),
+                              db_api.get_public_items(self.context, 'jmi'))}
         return instances
 
     def get_os_items(self):
@@ -629,7 +629,7 @@ def _format_instance(context, instance, os_instance, ec2_network_interfaces,
                      os_flavors=None):
     ec2_instance = {
         #'launchIndex': instance['launch_index'],
-        'imageId': (ec2utils.os_id_to_ec2_id(context, 'ami',
+        'imageId': (ec2utils.os_id_to_ec2_id(context, 'jmi',
                                              os_instance.image['id'],
                                              ids_by_os_id=image_ids)
                     if os_instance.image else None),
@@ -1461,7 +1461,7 @@ def _cloud_format_kernel_id(context, os_instance, image_ids=None):
     os_kernel_id = getattr(os_instance, 'OS-EXT-SRV-ATTR:kernel_id', None)
     if os_kernel_id is None or os_kernel_id == '':
         return
-    return ec2utils.os_id_to_ec2_id(context, 'aki', os_kernel_id,
+    return ec2utils.os_id_to_ec2_id(context, 'jki', os_kernel_id,
                                     ids_by_os_id=image_ids)
 
 
@@ -1469,7 +1469,7 @@ def _cloud_format_ramdisk_id(context, os_instance, image_ids=None):
     os_ramdisk_id = getattr(os_instance, 'OS-EXT-SRV-ATTR:ramdisk_id', None)
     if os_ramdisk_id is None or os_ramdisk_id == '':
         return
-    return ec2utils.os_id_to_ec2_id(context, 'ari', os_ramdisk_id,
+    return ec2utils.os_id_to_ec2_id(context, 'jri', os_ramdisk_id,
                                     ids_by_os_id=image_ids)
 
 def _cloud_state_find(os_instance):
