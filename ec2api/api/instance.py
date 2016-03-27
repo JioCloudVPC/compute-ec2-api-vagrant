@@ -672,7 +672,7 @@ def _format_instance(context, instance, os_instance, ec2_network_interfaces,
             ec2_instance['groupSet'] = _format_group_set(
                 context, os_instance.security_groups)
         except AttributeError:
-            LOG.warning("Security Group were not present in %s"%(os_instance['id']))
+            LOG.warning("Security Group were not present in %s"%(os_instance.id))
     else:
         primary_ec2_network_interface = None
         for ec2_network_interface in ec2_network_interfaces:
