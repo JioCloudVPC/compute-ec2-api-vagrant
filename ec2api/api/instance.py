@@ -46,7 +46,17 @@ ec2_opts = [
                      'describe instances'),
     cfg.StrOpt('default_flavor',
            default='m1.small',
-           help='A flavor to use as a default instance type')
+           help='A flavor to use as a default instance type'),
+    cfg.StrOpt('kms_server',
+           default='169.254.169.254:1688',
+           help='KMS server IP:port where windows instances contact for License'),
+    cfg.StrOpt('windows_jmi',
+           default='',
+           help='windows JMI ID'),
+    cfg.StrOpt('windows_key',
+           default='',
+           help='windows actiation key')
+
 ]
 
 CONF = cfg.CONF
@@ -58,6 +68,18 @@ DEFAULT_ROOT_DEVICE_NAME = "/dev/vda"
 """Instance related API implementation
 """
 
+windows_user_data = 'rem cmd\n'
+windows_user_data += 'tzutil /s \"India Standard Time\" \n'
+windows_user_data += 'time /t \n'
+windows_user_data += 'netsh advfirewall firewall add rule '
+windows_user_data += 'name="KMS_PORT" dir=in action=allow ' 
+windows_user_data += 'protocol=TCP localport=1688 \n'
+windows_user_data += 'cscript C:\\Windows\\System32\\slmgr.vbs /upk\n'
+windows_user_data += 'cscript C:\\Windows\\System32\\slmgr.vbs /ipk '
+windows_user_data += CONF.windows_key
+windows_user_data += ' \ncscript C:\\Windows\\System32\\slmgr.vbs /skms '
+windows_user_data += CONF.kms_server
+windows_user_data += ' \ncscript C:\\Windows\\System32\\slmgr.vbs /ato\n'
 
 class Validator(common.Validator):
 
@@ -186,6 +208,8 @@ def run_instances(context, image_id, instance_count=1,
             fixed_ip = fixed_ip.replace('.', '-')
             user_data = '#cloud-config\n' 
             user_data += 'manage_etc_hosts: true'
+            if image_id == CONF.windows_jmi:
+                user_data=windows_user_data
 
             os_instance = nova.servers.create(
                 'ip-%s' % (fixed_ip),
