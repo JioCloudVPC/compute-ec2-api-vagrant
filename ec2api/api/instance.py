@@ -18,7 +18,6 @@ import copy
 import itertools
 import random
 import re
-import sys
 
 from novaclient import exceptions as nova_exception
 from oslo_config import cfg
@@ -34,8 +33,6 @@ from ec2api import context as ec2_context
 from ec2api.db import api as db_api
 from ec2api import exception
 from ec2api.i18n import _, _LE
-from ec2api.api import subnet as subnet_api
-from ec2api.api import volume as ec2api_volume
 
 LOG = logging.getLogger(__name__)
 
@@ -46,40 +43,18 @@ ec2_opts = [
                      'describe instances'),
     cfg.StrOpt('default_flavor',
            default='m1.small',
-           help='A flavor to use as a default instance type'),
-    cfg.StrOpt('kms_server',
-           default='169.254.169.254:1688',
-           help='KMS server IP:port where windows instances contact for License'),
-    cfg.StrOpt('windows_jmi',
-           default='',
-           help='windows JMI ID'),
-    cfg.StrOpt('windows_key',
-           default='',
-           help='windows actiation key')
-
+           help='A flavor to use as a default instance type')
 ]
 
 CONF = cfg.CONF
 CONF.register_opts(ec2_opts)
 
 DEFAULT_BLOCK_VOLUME_SIZE = 8
-DEFAULT_ROOT_DEVICE_NAME = "/dev/vda"
+DEFAULT_ROOT_DEVICE_NAME = "/dev/sda1"
 
 """Instance related API implementation
 """
 
-windows_user_data = 'rem cmd\n'
-windows_user_data += 'tzutil /s \"India Standard Time\" \n'
-windows_user_data += 'time /t \n'
-windows_user_data += 'netsh advfirewall firewall add rule '
-windows_user_data += 'name="KMS_PORT" dir=in action=allow ' 
-windows_user_data += 'protocol=TCP localport=1688 \n'
-windows_user_data += 'cscript C:\\Windows\\System32\\slmgr.vbs /upk\n'
-windows_user_data += 'cscript C:\\Windows\\System32\\slmgr.vbs /ipk '
-windows_user_data += CONF.windows_key
-windows_user_data += ' \ncscript C:\\Windows\\System32\\slmgr.vbs /skms '
-windows_user_data += CONF.kms_server
-windows_user_data += ' \ncscript C:\\Windows\\System32\\slmgr.vbs /ato\n'
 
 class Validator(common.Validator):
 
@@ -129,7 +104,8 @@ def run_instances(context, image_id, instance_count=1,
     ramdisk_id=None
     network_interface=None
 
-    _check_instance_count(context, instance_count)
+    print "Run Instances"
+    _check_instance_count(instance_count)
 
     if client_token:
         reservations = describe_instances(context,
@@ -149,6 +125,12 @@ def run_instances(context, image_id, instance_count=1,
             context, image_id, kernel_id, ramdisk_id)
 
     nova = clients.nova(context)
+    print "Instance type ID"
+    print instance_type_id
+    print "flavour list"
+    print  nova.flavors.list()
+    print "default instance"
+    print CONF.default_flavor
     try:
         if instance_type_id is None:
             instance_type_id = CONF.default_flavor
@@ -158,23 +140,12 @@ def run_instances(context, image_id, instance_count=1,
         raise exception.InvalidParameterValue(value=instance_type_id,
                                               parameter='InstanceTypeId')
 
-    bdm = _parse_block_device_mapping_v2(context, block_device_mapping,
-                                         os_image, os_kernel_id,
-                                         os_ramdisk_id)
+    #bdm = _parse_block_device_mapping_v2(context, block_device_mapping,
+    #                                     os_image, os_kernel_id,
+    #                                     os_ramdisk_id)
     availability_zone = (placement or {}).get('availability_zone')
     if user_data:
         user_data = base64.b64decode(user_data)
-
-    # Adding default subnet information here. If user does not supply one.
-    # By default any random subnet id will be chosen from the list
-    # Currently there is no way for compute team to find the default subnet
-    # https://jira.ril.com/browse/JCC-144
-    if not subnet_id:
-        try:
-            subnet_data = subnet_api.describe_subnets(context)
-            subnet_id = subnet_data['subnetSet'][0]['subnetId']
-        except:
-            raise exception.DefaultSubnetIDNotFound()
 
     vpc_id, launch_context = instance_engine.get_vpc_and_build_launch_context(
         context, security_group,
@@ -203,22 +174,28 @@ def run_instances(context, image_id, instance_count=1,
             extra_params = (
                 instance_engine.get_launch_extra_parameters(
                     context, cleaner, launch_context))
-            fixed_ip = extra_params['fixed_ip']
-            extra_params.pop('fixed_ip')
-            fixed_ip = fixed_ip.replace('.', '-')
-            user_data = '#cloud-config\n' 
-            user_data += 'manage_etc_hosts: true'
-            if image_id == CONF.windows_jmi:
-                user_data=windows_user_data
+
+            print launch_context['network_data'][0]['network_interface']['os_id']
+            net_id = launch_context['network_data'][0]['network_interface']['os_id']
+            print ec2_reservation_id
+            #os_instance = nova.servers.create(
+            #    name="test", nics = [{'net-id': net_id} ],
+            #    image = os_image.id, flavor = os_flavor,
+            #    min_count=1, max_count=1,
+            #    kernel_id=os_kernel_id, ramdisk_id=os_ramdisk_id,
+            #    availability_zone=availability_zone,
+            #    key_name=key_name)
+
+
 
             os_instance = nova.servers.create(
-                'ip-%s' % (fixed_ip),
+                '%s-%s' % (ec2_reservation_id, launch_index),
                 os_image.id, os_flavor,
                 min_count=1, max_count=1,
                 kernel_id=os_kernel_id, ramdisk_id=os_ramdisk_id,
                 availability_zone=availability_zone,
-                block_device_mapping_v2=bdm,
-                key_name=key_name, userdata=user_data,
+                key_name=key_name,
+                userdata=user_data,
                 **extra_params)
             cleaner.addCleanup(nova.servers.delete, os_instance.id)
 
@@ -262,10 +239,10 @@ def terminate_instances(context, instance_id):
             os_instance = nova.servers.get(instance['os_id'])
             prev_state = getattr(os_instance, 'OS-EXT-STS:vm_state')
         except nova_exception.NotFound:
-            raise exception.InvalidInstanceIDNotFound(id=instance.get('id'))
+            os_instance = None
         else:
             os_instance.delete()
-        state_change = _format_state_change(instance, prev_state,inst_task_state_deleting)
+        state_change = _format_state_change(instance, prev_state)
         state_changes.append(state_change)
 
     # NOTE(ft): don't delete items from DB until they disappear from OS.
@@ -279,20 +256,21 @@ class InstanceDescriber(common.TaggableItemsDescriber):
     FILTER_MAP = {
         'availability-zone': ('placement', 'availabilityZone'),
         'block-device-mapping.delete-on-termination': [
-            'blockDeviceMapping', 'deleteOnTermination'],
+            'blockDeviceMapping', ('ebs', 'deleteOnTermination')],
         'block-device-mapping.device-name': ['blockDeviceMapping',
                                              'deviceName'],
         'block-device-mapping.status': ['blockDeviceMapping',
-                                            'status'],
+                                        ('ebs', 'status')],
         'block-device-mapping.volume-id': ['blockDeviceMapping',
-                                           'volumeId'],
+                                           ('ebs', 'volumeId')],
         'client-token': 'clientToken',
         'dns-name': 'dnsName',
-        'security-group-ids': ['groupSet', 'groupId'],
-        'security-group-names': ['groupSet', 'groupName'],
+        'group-id': ['groupSet', 'groupId'],
+        'group-name': ['groupSet', 'groupName'],
         'image-id': 'imageId',
         'instance-id': 'instanceId',
-        'instance-state': 'instanceState',
+        'instance-state-code': ('instanceState', 'code'),
+        'instance-state-name': ('instanceState', 'name'),
         'instance-type': 'instanceType',
         'instance.group-id': ['groupSet', 'groupId'],
         'instance.group-name': ['groupSet', 'groupName'],
@@ -306,8 +284,8 @@ class InstanceDescriber(common.TaggableItemsDescriber):
         'ramdisk-id': 'ramdiskId',
         'root-device-name': 'rootDeviceName',
         'root-device-type': 'rootDeviceType',
-        'subnet-id': 'subnetId',
-        'vpc-id': 'vpcId',
+        'subnet-id': ['networkInterfaceSet', 'subnetId'],
+        'vpc-id': ['networkInterfaceSet', 'vpcId'],
         'network-interface.description': ['networkInterfaceSet',
                                           'description'],
         'network-interface.subnet-id': ['networkInterfaceSet', 'subnetId'],
@@ -361,6 +339,9 @@ class InstanceDescriber(common.TaggableItemsDescriber):
         self.obsolete_instances = []
 
     def format(self, instance, os_instance):
+        self.volumes = None
+        self.os_volumes = None
+        self.os_flavors= None
         formatted_instance = _format_instance(
                 self.context, instance, os_instance,
                 self.ec2_network_interfaces.get(instance['id']),
@@ -392,20 +373,24 @@ class InstanceDescriber(common.TaggableItemsDescriber):
                         for v in db_api.get_items(self.context, 'vol')}
         self.image_ids = {i['os_id']: i['id']
                           for i in itertools.chain(
-                              db_api.get_items(self.context, 'jmi'),
-                              db_api.get_public_items(self.context, 'jmi'))}
+                              db_api.get_items(self.context, 'ami'),
+                              db_api.get_public_items(self.context, 'ami'))}
         return instances
 
     def get_os_items(self):
-        self.os_volumes = _get_os_volumes(self.context)
-        self.os_flavors = _get_os_flavors(self.context)
+        #self.os_volumes = _get_os_volumes(self.context)
+        #self.os_flavors = _get_os_flavors(self.context)
         nova = clients.nova(self.context)
+        print "----------------------------------"
+        ###Self ids are empty
         if self.ids == 1 and len(self.items) == 1:
             try:
                 return [nova.servers.get(self.items[0]['os_id'])]
             except nova_exception.NotFound:
                 return []
         else:
+            print "In else"
+            print self.context.project_id
             return nova.servers.list(
                 search_opts={'all_tenants': True,
                              'project_id': self.context.project_id})
@@ -530,7 +515,7 @@ def reboot_instances(context, instance_id):
                              (vm_states_ALLOW_SOFT_REBOOT +
                               vm_states_ALLOW_HARD_REBOOT),
                              lambda instance: instance.reboot(),
-                             inst_task_state_rebooting)
+                             vm_states_ACTIVE)
 
 
 def stop_instances(context, instance_id, force=False):
@@ -538,13 +523,13 @@ def stop_instances(context, instance_id, force=False):
                              [vm_states_ACTIVE, vm_states_RESCUED,
                               vm_states_ERROR],
                              lambda instance: instance.stop(),
-                             inst_task_state_powering_off)
+                             vm_states_STOPPED)
 
 
 def start_instances(context, instance_id):
     return _foreach_instance(context, instance_id, [vm_states_STOPPED],
                              lambda instance: instance.start(),
-                             inst_task_state_powering_on)
+                             vm_states_ACTIVE)
 
 
 def get_password_data(context, instance_id):
@@ -653,12 +638,12 @@ def _format_instance(context, instance, os_instance, ec2_network_interfaces,
                      os_flavors=None):
     ec2_instance = {
         #'launchIndex': instance['launch_index'],
-        'imageId': (ec2utils.os_id_to_ec2_id(context, 'jmi',
+        'imageId': (ec2utils.os_id_to_ec2_id(context, 'ami',
                                              os_instance.image['id'],
                                              ids_by_os_id=image_ids)
                     if os_instance.image else None),
         'instanceId': instance['id'],
-        'instanceType': os_flavors.get(os_instance.flavor['id'], 'unknown'),
+        #'instanceType': os_flavors.get(os_instance.flavor['id'], 'unknown'),
         'keyName': os_instance.key_name,
         'launchTime': os_instance.created,
 #        'placement': {
@@ -670,10 +655,10 @@ def _format_instance(context, instance, os_instance, ec2_network_interfaces,
     }
     root_device_name = getattr(os_instance,
                                'OS-EXT-SRV-ATTR:root_device_name', None)
-    if root_device_name:
-        ec2_instance['rootDeviceName'] = root_device_name
-    _cloud_format_instance_bdm(context, os_instance, ec2_instance,
-                               volumes, os_volumes)
+    #if root_device_name:
+    #    ec2_instance['rootDeviceName'] = root_device_name
+    #_cloud_format_instance_bdm(context, os_instance, ec2_instance,
+    #                           volumes, os_volumes)
     kernel_id = _cloud_format_kernel_id(context, os_instance, image_ids)
     if kernel_id:
         ec2_instance['kernelId'] = kernel_id
@@ -692,11 +677,10 @@ def _format_instance(context, instance, os_instance, ec2_network_interfaces,
         dns_name = floating_ip
         # TODO(ft): euca2ools require groupId for an instance security group.
         # But ec2-api doesn't store IDs for EC2 Classic groups.
-        try:
-            ec2_instance['groupSet'] = _format_group_set(
-                context, os_instance.security_groups)
-        except AttributeError:
-            LOG.warning("Security Group were not present in %s"%(os_instance.id))
+        #print "-------------------------Harsh Says------------------"
+        #print os_instance
+        #ec2_instance['groupSet'] = _format_group_set(
+        #        context, os_instance.security_groups)
     else:
         primary_ec2_network_interface = None
         for ec2_network_interface in ec2_network_interfaces:
@@ -746,6 +730,20 @@ def _format_instance(context, instance, os_instance, ec2_network_interfaces,
     return ec2_instance
 
 
+def _format_state_change(instance, prev_state=None, current_state=None):
+    # Changing this function to receive the current and previous state
+    # parameters
+    if prev_state is None:
+        prev_state = vm_states_WIPED_OUT
+    if current_state is None:
+        current_state = vm_states_WIPED_OUT
+    return {
+        'instanceId': instance['id'],
+        'previousState': _cloud_state_description(prev_state),
+        'currentState': _cloud_state_description(current_state)
+    }
+
+
 def _remove_instances(context, instances):
     if not instances:
         return
@@ -767,22 +765,15 @@ def _remove_instances(context, instances):
                                                                eni['id'])
         db_api.delete_item(context, instance_id)
 
-def _check_instance_count(context, instance_count):
+def _check_instance_count(instance_count):
     instance_count = int(instance_count)
+    # TODO: figure out appropriate aws message and use them
+    # This method is not checking if instance count is more
+    # than the quota. We need to make sure that it is happen-
+    # -ing somewhere.
     if instance_count < 1:
         msg = _('Instance count must be greater than zero')
         raise exception.InvalidParameterValue(msg)
-    nova = clients.nova(context)
-    account_limits = nova.quotas.limits(context.project_id)
-    account_limits = account_limits.absolute
-    instances_used = account_limits.get('totalInstancesUsed')
-    max_instances = account_limits.get('maxTotalInstances')
-    # Handle the case when max_instances is < 0, the case
-    # for infinite values, i.e, no limit
-    if max_instances >= 0:
-        if instances_used + instance_count > max_instances:
-            raise exception.ResourceNotLeft(number=max_instances,
-                                            resource='instances')
 
 # TODO: Remove this method once requirements are finalized
 # def _check_min_max_count(min_count, max_count):
@@ -829,18 +820,8 @@ def _is_this_root_volume(context, item, root_device, root_snapshot_id):
 
         # This block device mapping is for root device/volume
         result = True
-
-    # User is trying to use a snapshot id that is reserved for an image
-    # But this is not the root volume. The snapshot IDs for the images
-    # is just a metadata for now. So this is an error condition for us.
-    if item.has_key("snapshot_id") and \
-       item["snapshot_id"] == root_snapshot_id and \
-       item.has_key("device_name") and \
-       item["device_name"] != root_device:
-            msg = ('Invalid usage of reserved snapshot with non root device')
-            raise exception.InvalidParameterValue(msg)
-
     return result
+
 
 def _process_block_device_mapping_entry(context, item,
                                         root_device,
@@ -881,11 +862,8 @@ def _process_block_device_mapping_entry(context, item,
         else:
             result["source_type"] = "blank"
 
-        # For secondary volume only assign this if valid device name
         if item.has_key("device_name"):
-            device = str(item["device_name"]).lower()
-            ec2utils.validate_device_name(device)
-            result["device_name"] = device
+            result["device_name"] = item["device_name"]
 
         result["boot_index"] = "-1"
     return root_device_found, result
@@ -911,12 +889,10 @@ def _create_root_bdm_from_image(context, os_image):
         if os_image.properties != None and os_image.properties.has_key("root_device"):
             root_bdm["device_name"] = str(os_image.properties["root_device"])
 
-    # JCC-164 trumps JCC 109
-    # We will pass the root device name all the way to the hypervisor
-    # This is safe operation as user does not get to device or set this
-    # parameter ever
-    # if root_bdm.has_key("device_name"):
-    #    root_bdm.pop("device_name")
+    # Fix for https://jira.ril.com/browse/JCC-109
+    # Root BDM was not mounting
+    if root_bdm.has_key("device_name"):
+        root_bdm.pop("device_name")
 
     return root_bdm
 
@@ -947,7 +923,6 @@ def _parse_block_device_mapping_v2(context, block_device_mapping,
             root_snapshot_id = os_image.properties["snapshot_id"]
 
     bdm_has_root_device = False
-    unique_device_names = []
     # Now we are ready to process block device mapping enteries
     for item in block_device_mapping:
         is_root_dev, result = _process_block_device_mapping_entry(context,
@@ -956,21 +931,14 @@ def _parse_block_device_mapping_v2(context, block_device_mapping,
                                                                  root_snapshot_id,
                                                                  os_image)
 
-        # JCC-164 trumps JCC 109
-        # We will pass the root device name all the way to the hypervisor
-        # if result.has_key("device_name"):
-        #    result.pop("device_name")
+        # Fix for https://jira.ril.com/browse/JCC-109
+        # BDM was not mounting
+        if result.has_key("device_name"):
+            result.pop("device_name")
 
         bdm_list.append(result)
         if is_root_dev:
             bdm_has_root_device = True
-
-        if "device_name" in result:
-            if result["device_name"] not in unique_device_names:
-                unique_device_names.append(result["device_name"])
-            else:
-                msg = ('Duplicate device names not allowed')
-                raise exception.InvalidParameterValue(msg)
 
     if bdm_has_root_device == False:
         bdm = _create_root_bdm_from_image(context, os_image)
@@ -1017,7 +985,7 @@ def _get_ip_info_for_instance(os_instance):
 
 
 def _foreach_instance(context, instance_ids, valid_states, func,
-                      final_task_state=None):
+                      final_state=None):
     instances = ec2utils.get_db_items(context, 'i', instance_ids)
     os_instances = _get_os_instances_by_instances(context, instances,
                                                   exactly=True)
@@ -1029,29 +997,11 @@ def _foreach_instance(context, instance_ids, valid_states, func,
     state_changes = []
     for os_instance, ec2_instance in zip(os_instances, instances):
         prev_state = getattr(os_instance, 'OS-EXT-STS:vm_state')
-        try:
-            func(os_instance)
-        except Exception as e:
-            exc_type, exc_obj, exc_tb = sys.exc_info()
-            LOG.exception(str(e))
-            if isinstance(exc_obj, nova_exception.Conflict):
-                raise exception.IncorrectInstanceState(
-                    instance_id=ec2_instance['id'])
-            else:
-                raise e
+        func(os_instance)
         state_change = _format_state_change(ec2_instance, prev_state,
-                                            final_task_state)
+                                            final_state)
         state_changes.append(state_change)
     return {"instancesSet": state_changes}
-
-def _format_state_change(instance, prev_state,final_task_state):
-    if prev_state is None:
-        prev_state = vm_states_WIPED_OUT
-    return {
-        'instanceId': instance['id'],
-        'previousState': _cloud_state_description(prev_state),
-        'currentState': _TASK_STATE_TO_EC2_STATE.get(final_task_state)
-    }
 
 
 def _get_os_instances_by_instances(context, instances, exactly=False,
@@ -1123,6 +1073,7 @@ class InstanceEngineNeutron(object):
             network_interface, multiple_instances):
         # TODO(ft): support auto_assign_floating_ip
 
+        print "----------------------Coming in VPC ENgine--------------------"
         vpc_network_parameters = self.merge_network_interface_parameters(
             security_group,
             subnet_id, private_ip_address, security_group_id,
@@ -1156,12 +1107,10 @@ class InstanceEngineNeutron(object):
         else:
             network_data = launch_context['network_data']
             self.create_network_interfaces(context, cleaner, network_data)
-            fixed_ip = network_data[0]['network_interface']['private_ip_address']
             nics = [{'port-id': data['network_interface']['os_id']}
                     for data in network_data]
         return {'security_groups': launch_context['security_groups'],
-                'nics': nics,
-                'fixed_ip': fixed_ip}
+                'nics': nics}
 
     def post_launch_action(self, context, cleaner, launch_context,
                            instance_id):
@@ -1485,7 +1434,7 @@ def _cloud_format_kernel_id(context, os_instance, image_ids=None):
     os_kernel_id = getattr(os_instance, 'OS-EXT-SRV-ATTR:kernel_id', None)
     if os_kernel_id is None or os_kernel_id == '':
         return
-    return ec2utils.os_id_to_ec2_id(context, 'jki', os_kernel_id,
+    return ec2utils.os_id_to_ec2_id(context, 'aki', os_kernel_id,
                                     ids_by_os_id=image_ids)
 
 
@@ -1493,7 +1442,7 @@ def _cloud_format_ramdisk_id(context, os_instance, image_ids=None):
     os_ramdisk_id = getattr(os_instance, 'OS-EXT-SRV-ATTR:ramdisk_id', None)
     if os_ramdisk_id is None or os_ramdisk_id == '':
         return
-    return ec2utils.os_id_to_ec2_id(context, 'jri', os_ramdisk_id,
+    return ec2utils.os_id_to_ec2_id(context, 'ari', os_ramdisk_id,
                                     ids_by_os_id=image_ids)
 
 def _cloud_state_find(os_instance):
@@ -1519,7 +1468,9 @@ def _cloud_state_find(os_instance):
     else:
         name = _STATE_DESCRIPTION_MAP.get(vm_state,vm_state)
              
-    return name
+    return {'code': inst_state_name_to_code(name),
+            'name': name}
+
 
 def _cloud_format_instance_type(context, os_instance):
     return clients.nova(context).flavors.get(os_instance.flavor['id']).name
@@ -1577,15 +1528,11 @@ def _cloud_format_instance_bdm(context, os_instance, result,
         # TODO(yamahata): volume attach time
         bdm_entry['volumeId'] = os_volume.id
         bdm_entry['status'] = _cloud_get_volume_attach_status(os_volume)
-        bdm_entry['deleteOnTermination'] = 'False'
-        del_on_term = ec2api_volume.show_delete_on_termination_flag(context,
-                                                               os_volume.id)
-        del_on_term = del_on_term.get('volume')
-        if del_on_term:
-            if del_on_term.get('delete_on_termination', False) == True:
-                bdm_entry['deleteOnTermination'] = 'True'
         volume_attached = next((va for va in volumes_attached
                                 if va['id'] == os_volume.id), None)
+        if volume_attached and 'delete_on_termination' in volume_attached:
+            bdm_entry['deleteOnTermination'] = (
+                volume_attached['delete_on_termination'])
         mapping.append(bdm_entry)
 
     if mapping:
@@ -1688,7 +1635,6 @@ inst_state_SHUTTING_DOWN = 'shutting-down'
 inst_state_TERMINATED = 'terminated'
 inst_state_STOPPING = 'stopping'
 inst_state_STOPPED = 'stopped'
-inst_state_REBOOTING = 'rebooting'
 
 # non-ec2 value
 inst_state_MIGRATE = 'migrate'
@@ -1704,9 +1650,6 @@ inst_task_state_spawning = 'spawning'
 inst_task_state_powering_off = 'powering-off'
 inst_task_state_powering_on = 'powering-on'
 inst_task_state_deleting = 'deleting'
-inst_task_state_rebooting = 'rebooting'
-inst_task_state_rebooting_pending = 'reboot_pending'
-inst_task_state_rebooting_started = 'reboot_started'
 
 _TASK_STATE_TO_EC2_STATE = {
     inst_task_state_scheduling: inst_state_PENDING,
@@ -1716,9 +1659,6 @@ _TASK_STATE_TO_EC2_STATE = {
     inst_task_state_powering_off: inst_state_STOPPING,
     inst_task_state_powering_on: inst_state_PENDING,
     inst_task_state_deleting: inst_state_SHUTTING_DOWN,
-    inst_task_state_rebooting: inst_state_REBOOTING,
-    inst_task_state_rebooting_started: inst_state_REBOOTING,
-    inst_task_state_rebooting_pending: inst_state_REBOOTING,
 }
 
 # EC2 API instance status code
